@@ -27,9 +27,13 @@ namespace MyAPP.Views
         private Models.Template? _selectedTemplate = null;
         private Models.Variable? _editingVariable = null;
 
-        private Coll.List<Models.Preset> _currentPresets = new();
+        private Coll.List<Models.Preset> _currentPresets = new Coll.List<Models.Preset>();
 
-        private readonly Sys.String _uploadDir = IO.Path.Combine(Sys.AppDomain.CurrentDomain.BaseDirectory, "uploaded");
+        private readonly Sys.String _uploadDir = IO.Path.Combine(
+            Sys.Environment.GetFolderPath(Sys.Environment.SpecialFolder.LocalApplicationData),
+            "MyAPP",
+            "uploaded"
+        );
 
         public class VariableViewModel : Comp.INotifyPropertyChanged
         {
@@ -66,11 +70,13 @@ namespace MyAPP.Views
             public Sys.String Name { get; set; } = string.Empty;
             public Sys.String FullPath { get; set; } = string.Empty;
             public Sys.Boolean IsFolder { get; set; }
+
             public PackIconMaterialKind IconKind => IsFolder ? PackIconMaterialKind.Folder : PackIconMaterialKind.FileDocumentOutline;
             public Media.Brush IconColor => IsFolder ? Media.Brushes.Orange : Media.Brushes.Gray;
+
             public Sys.String SizeDisplay { get; set; } = string.Empty;
             public Sys.Boolean IsExpanded { get; set; } = false;
-            public Obj.ObservableCollection<FileSystemItem> Children { get; set; } = new();
+            public Obj.ObservableCollection<FileSystemItem> Children { get; set; } = new Obj.ObservableCollection<FileSystemItem>();
         }
 
         public DashboardView()
@@ -113,7 +119,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Data Loading
+        #region Data Loading (Supabase)
 
         private async Tasks.Task LoadPresetsAsync()
         {
@@ -164,7 +170,7 @@ namespace MyAPP.Views
 
             foreach (Models.Template template in this._selectedPreset.Templates)
             {
-                Controls.Button btn = new()
+                Controls.Button btn = new Controls.Button
                 {
                     Content = Sys.String.Concat("📄 ", template.Title),
                     Tag = template,
@@ -194,7 +200,8 @@ namespace MyAPP.Views
             this.LoadTemplatesUI();
             this.LoadVariablesForCurrentTemplate();
             this.UpdatePreviewContent(template.Content);
-            this.LoadFileManager(); 
+
+            this.LoadFileManager();
         }
 
         private void LoadVariablesForCurrentTemplate()
@@ -207,7 +214,7 @@ namespace MyAPP.Views
                 return;
             }
 
-            Coll.List<VariableViewModel> viewModels = new();
+            Coll.List<VariableViewModel> viewModels = new Coll.List<VariableViewModel>();
 
             if (this._selectedTemplate.Variables != null)
             {
@@ -241,16 +248,17 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region File Manager Logic
+        #region File Manager Logic (Optimized I/O)
 
         private void LoadFileManager()
         {
             if (!IO.Directory.Exists(_uploadDir)) IO.Directory.CreateDirectory(_uploadDir);
 
-            Obj.ObservableCollection<FileSystemItem> items = new();
+            Obj.ObservableCollection<FileSystemItem> items = new Obj.ObservableCollection<FileSystemItem>();
             BuildTree(_uploadDir, items);
             this.TreeFiles.ItemsSource = items;
-            this.TxtCurrentPath.Text = "uploaded/";
+
+            this.TxtCurrentPath.Text = "Storage/";
         }
 
         private static void BuildTree(Sys.String path, Obj.ObservableCollection<FileSystemItem> collection)
@@ -259,20 +267,20 @@ namespace MyAPP.Views
             {
                 foreach (Sys.String dir in IO.Directory.EnumerateDirectories(path))
                 {
-                    FileSystemItem item = new()
+                    FileSystemItem item = new FileSystemItem
                     {
                         Name = IO.Path.GetFileName(dir),
                         FullPath = dir,
                         IsFolder = true,
                         IsExpanded = true
                     };
-                    BuildTree(dir, item.Children); 
+                    BuildTree(dir, item.Children);
                     collection.Add(item);
                 }
 
                 foreach (Sys.String file in IO.Directory.EnumerateFiles(path))
                 {
-                    IO.FileInfo fi = new(file);
+                    IO.FileInfo fi = new IO.FileInfo(file);
                     collection.Add(new FileSystemItem
                     {
                         Name = fi.Name,
@@ -310,10 +318,10 @@ namespace MyAPP.Views
 
         private void BtnUploadFile_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
-            Dialogs.OpenFileDialog dlg = new()
+            Dialogs.OpenFileDialog dlg = new Dialogs.OpenFileDialog
             {
                 Multiselect = true,
-                Title = "Pilih File"
+                Title = "Pilih File untuk Diunggah"
             };
 
             if (dlg.ShowDialog() == true)
@@ -321,16 +329,23 @@ namespace MyAPP.Views
                 foreach (Sys.String file in dlg.FileNames)
                 {
                     Sys.String dest = IO.Path.Combine(_uploadDir, IO.Path.GetFileName(file));
-                    try { IO.File.Copy(file, dest, true); } catch { }
+                    try
+                    {
+                        IO.File.Copy(file, dest, true);
+                    }
+                    catch (Sys.Exception ex)
+                    {
+                        Sys.Console.WriteLine($"Upload Fail: {ex.Message}");
+                    }
                 }
                 this.LoadFileManager();
-                this.ShowToast("File diunggah");
+                this.ShowToast("File berhasil disimpan");
             }
         }
 
         private void BtnUploadFolder_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
-            Dialogs.OpenFolderDialog dialog = new()
+            Dialogs.OpenFolderDialog dialog = new Dialogs.OpenFolderDialog
             {
                 Title = "Pilih Folder",
                 Multiselect = false
@@ -344,13 +359,13 @@ namespace MyAPP.Views
                 CopyDirectory(dialog.FolderName, destDir);
 
                 this.LoadFileManager();
-                this.ShowToast("Folder diunggah");
+                this.ShowToast("Folder disalin ke storage");
             }
         }
 
         private static void CopyDirectory(Sys.String sourceDir, Sys.String destinationDir)
         {
-            IO.DirectoryInfo dir = new(sourceDir);
+            IO.DirectoryInfo dir = new IO.DirectoryInfo(sourceDir);
             if (!dir.Exists) return;
 
             IO.Directory.CreateDirectory(destinationDir);
@@ -372,22 +387,28 @@ namespace MyAPP.Views
             {
                     try
                     {
-                        if (item.IsFolder) IO.Directory.Delete(item.FullPath, true);
-                        else IO.File.Delete(item.FullPath);
+                        if (item.IsFolder)
+                        {
+                            IO.Directory.Delete(item.FullPath, true);
+                        }
+                        else
+                        {
+                            IO.File.Delete(item.FullPath);
+                        }
 
                         this.LoadFileManager();
-                        this.ShowToast("Item dihapus");
+                        this.ShowToast("Item berhasil dihapus");
                     }
                     catch (Sys.Exception ex)
                     {
-                        this.ShowToast("Gagal hapus: " + ex.Message, true);
+                        this.ShowToast("Gagal menghapus: " + ex.Message, true);
                     }
             }
         }
 
         #endregion
 
-        #region UI Event Handlers
+        #region UI Event Handlers (Navigasi & Ekspor)
 
         private void ListPresets_SelectionChanged(Sys.Object sender, Controls.SelectionChangedEventArgs e)
         {
@@ -444,7 +465,7 @@ namespace MyAPP.Views
         {
             try
             {
-                Dialogs.SaveFileDialog dialog = new()
+                Dialogs.SaveFileDialog dialog = new Dialogs.SaveFileDialog
                 {
                     Filter = "JSON files (*.json)|*.json",
                     FileName = Sys.String.Concat("backup-presets-", Sys.DateTime.Now.ToString("yyyy-MM-dd"), ".json")
@@ -466,7 +487,7 @@ namespace MyAPP.Views
         {
             try
             {
-                Dialogs.OpenFileDialog dialog = new()
+                Dialogs.OpenFileDialog dialog = new Dialogs.OpenFileDialog
                 {
                     Filter = "JSON files (*.json)|*.json"
                 };
@@ -533,7 +554,7 @@ namespace MyAPP.Views
                 }
 
                 this.BtnCloseModal_Click(sender, e);
-                this.ShowToast("Disimpan");
+                this.ShowToast("Data berhasil disimpan");
             }
             catch (Sys.Exception ex)
             {
@@ -544,7 +565,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Preset CRUD
+        #region CRUD: Preset
 
         private void BtnNewPreset_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
@@ -622,7 +643,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Template CRUD
+        #region CRUD: Template
 
         private void BtnAddTemplate_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
@@ -732,7 +753,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Variable CRUD
+        #region CRUD: Variable
 
         private void BtnAddVariable_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
@@ -852,7 +873,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Preview & Processing
+        #region Preview Processing (Text Replacement)
 
         private void BtnCheckPreview_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
