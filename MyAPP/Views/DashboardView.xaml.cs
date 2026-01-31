@@ -2,21 +2,18 @@
 using Win = System.Windows;
 using Controls = System.Windows.Controls;
 using Msg = System.Windows.MessageBox;
-using MsgButton = System.Windows.MessageBoxButton;
-using MsgImage = System.Windows.MessageBoxImage;
-using MsgBoxResult = System.Windows.MessageBoxResult;
 using Tasks = System.Threading.Tasks;
 using Coll = System.Collections.Generic;
 using Models = MyAPP.Models;
 using Services = MyAPP.Services;
 using Linq = System.Linq;
 using IO = System.IO;
-using Json = System.Text.Json;
-using Windows = System.Windows;
 using Media = System.Windows.Media;
 using TextCopy;
 using Comp = System.ComponentModel;
 using MahApps.Metro.IconPacks;
+using Obj = System.Collections.ObjectModel;
+using Dialogs = Microsoft.Win32; 
 
 namespace MyAPP.Views
 {
@@ -30,9 +27,9 @@ namespace MyAPP.Views
         private Models.Template? _selectedTemplate = null;
         private Models.Variable? _editingVariable = null;
 
-        private Coll.List<Models.Preset> _currentPresets = new Coll.List<Models.Preset>();
-        private Coll.List<Models.Template> _currentTemplates = new Coll.List<Models.Template>();
-        private Coll.List<Models.Variable> _currentVariables = new Coll.List<Models.Variable>();
+        private Coll.List<Models.Preset> _currentPresets = new();
+
+        private readonly Sys.String _uploadDir = IO.Path.Combine(Sys.AppDomain.CurrentDomain.BaseDirectory, "uploaded");
 
         public class VariableViewModel : Comp.INotifyPropertyChanged
         {
@@ -62,23 +59,30 @@ namespace MyAPP.Views
             {
                 PropertyChanged?.Invoke(this, new Comp.PropertyChangedEventArgs(propertyName));
             }
+        }
 
-            public Models.Variable ToModel()
-            {
-                return new Models.Variable
-                {
-                    Id = this.Id,
-                    TemplateId = this.TemplateId,
-                    Name = this.Name,
-                    Value = this.CurrentValue
-                };
-            }
+        public class FileSystemItem
+        {
+            public Sys.String Name { get; set; } = string.Empty;
+            public Sys.String FullPath { get; set; } = string.Empty;
+            public Sys.Boolean IsFolder { get; set; }
+            public PackIconMaterialKind IconKind => IsFolder ? PackIconMaterialKind.Folder : PackIconMaterialKind.FileDocumentOutline;
+            public Media.Brush IconColor => IsFolder ? Media.Brushes.Orange : Media.Brushes.Gray;
+            public Sys.String SizeDisplay { get; set; } = string.Empty;
+            public Sys.Boolean IsExpanded { get; set; } = false;
+            public Obj.ObservableCollection<FileSystemItem> Children { get; set; } = new();
         }
 
         public DashboardView()
         {
             this.InitializeComponent();
             this._dataService = new Services.SupabaseDataService();
+
+            if (!IO.Directory.Exists(_uploadDir))
+            {
+                IO.Directory.CreateDirectory(_uploadDir);
+            }
+
             this.Loaded += async (s, e) => await this.LoadPresetsAsync();
         }
 
@@ -119,17 +123,6 @@ namespace MyAPP.Views
 
                 foreach (Models.Preset preset in this._currentPresets)
                 {
-                    int varCount = 0;
-                    if (preset.Templates != null)
-                    {
-                        foreach (Models.Template template in preset.Templates)
-                        {
-                            if (template.Variables != null)
-                            {
-                                varCount += template.Variables.Count;
-                            }
-                        }
-                    }
                     preset.UserId = Sys.Guid.Empty;
                 }
 
@@ -171,13 +164,13 @@ namespace MyAPP.Views
 
             foreach (Models.Template template in this._selectedPreset.Templates)
             {
-                Controls.Button btn = new Controls.Button
+                Controls.Button btn = new()
                 {
                     Content = Sys.String.Concat("📄 ", template.Title),
                     Tag = template,
-                    Margin = new Windows.Thickness(0, 0, 8, 8),
+                    Margin = new Win.Thickness(0, 0, 8, 8),
                     Height = 38,
-                    Padding = new Windows.Thickness(16, 0, 16, 0)
+                    Padding = new Win.Thickness(16, 0, 16, 0)
                 };
 
                 if (this._selectedTemplate != null && this._selectedTemplate.Id == template.Id)
@@ -201,6 +194,7 @@ namespace MyAPP.Views
             this.LoadTemplatesUI();
             this.LoadVariablesForCurrentTemplate();
             this.UpdatePreviewContent(template.Content);
+            this.LoadFileManager(); 
         }
 
         private void LoadVariablesForCurrentTemplate()
@@ -213,7 +207,7 @@ namespace MyAPP.Views
                 return;
             }
 
-            Coll.List<VariableViewModel> viewModels = new Coll.List<VariableViewModel>();
+            Coll.List<VariableViewModel> viewModels = new();
 
             if (this._selectedTemplate.Variables != null)
             {
@@ -242,6 +236,152 @@ namespace MyAPP.Views
             {
                 this.ItemsVariables.Visibility = Win.Visibility.Visible;
                 this.PanelEmptyVariables.Visibility = Win.Visibility.Collapsed;
+            }
+        }
+
+        #endregion
+
+        #region File Manager Logic
+
+        private void LoadFileManager()
+        {
+            if (!IO.Directory.Exists(_uploadDir)) IO.Directory.CreateDirectory(_uploadDir);
+
+            Obj.ObservableCollection<FileSystemItem> items = new();
+            BuildTree(_uploadDir, items);
+            this.TreeFiles.ItemsSource = items;
+            this.TxtCurrentPath.Text = "uploaded/";
+        }
+
+        private static void BuildTree(Sys.String path, Obj.ObservableCollection<FileSystemItem> collection)
+        {
+            try
+            {
+                foreach (Sys.String dir in IO.Directory.EnumerateDirectories(path))
+                {
+                    FileSystemItem item = new()
+                    {
+                        Name = IO.Path.GetFileName(dir),
+                        FullPath = dir,
+                        IsFolder = true,
+                        IsExpanded = true
+                    };
+                    BuildTree(dir, item.Children); 
+                    collection.Add(item);
+                }
+
+                foreach (Sys.String file in IO.Directory.EnumerateFiles(path))
+                {
+                    IO.FileInfo fi = new(file);
+                    collection.Add(new FileSystemItem
+                    {
+                        Name = fi.Name,
+                        FullPath = file,
+                        IsFolder = false,
+                        SizeDisplay = FormatSize(fi.Length)
+                    });
+                }
+            }
+            catch (Sys.Exception ex)
+            {
+                Sys.Console.WriteLine("Tree Build Error: " + ex.Message);
+            }
+        }
+
+        private static Sys.String FormatSize(Sys.Int64 bytes)
+        {
+            if (bytes == 0) return "0 B";
+            Sys.String[] suffixes = { "B", "KB", "MB", "GB" };
+            Sys.Int32 i = 0;
+            Sys.Double dbl = bytes;
+            while (dbl >= 1024 && i < suffixes.Length - 1)
+            {
+                dbl /= 1024;
+                i++;
+            }
+            return $"{dbl:0.#} {suffixes[i]}";
+        }
+
+        private void BtnRefreshFiles_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            this.LoadFileManager();
+            this.ShowToast("File direfresh");
+        }
+
+        private void BtnUploadFile_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            Dialogs.OpenFileDialog dlg = new()
+            {
+                Multiselect = true,
+                Title = "Pilih File"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                foreach (Sys.String file in dlg.FileNames)
+                {
+                    Sys.String dest = IO.Path.Combine(_uploadDir, IO.Path.GetFileName(file));
+                    try { IO.File.Copy(file, dest, true); } catch { }
+                }
+                this.LoadFileManager();
+                this.ShowToast("File diunggah");
+            }
+        }
+
+        private void BtnUploadFolder_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            Dialogs.OpenFolderDialog dialog = new()
+            {
+                Title = "Pilih Folder",
+                Multiselect = false
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                Sys.String folderName = IO.Path.GetFileName(dialog.FolderName);
+                Sys.String destDir = IO.Path.Combine(_uploadDir, folderName);
+
+                CopyDirectory(dialog.FolderName, destDir);
+
+                this.LoadFileManager();
+                this.ShowToast("Folder diunggah");
+            }
+        }
+
+        private static void CopyDirectory(Sys.String sourceDir, Sys.String destinationDir)
+        {
+            IO.DirectoryInfo dir = new(sourceDir);
+            if (!dir.Exists) return;
+
+            IO.Directory.CreateDirectory(destinationDir);
+
+            foreach (IO.FileInfo file in dir.GetFiles())
+            {
+                file.CopyTo(IO.Path.Combine(destinationDir, file.Name), true);
+            }
+
+            foreach (IO.DirectoryInfo subDir in dir.GetDirectories())
+            {
+                CopyDirectory(subDir.FullName, IO.Path.Combine(destinationDir, subDir.Name));
+            }
+        }
+
+        private void BtnDeleteFile_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (sender is Controls.Button btn && btn.Tag is FileSystemItem item)
+            {
+                    try
+                    {
+                        if (item.IsFolder) IO.Directory.Delete(item.FullPath, true);
+                        else IO.File.Delete(item.FullPath);
+
+                        this.LoadFileManager();
+                        this.ShowToast("Item dihapus");
+                    }
+                    catch (Sys.Exception ex)
+                    {
+                        this.ShowToast("Gagal hapus: " + ex.Message, true);
+                    }
             }
         }
 
@@ -304,7 +444,7 @@ namespace MyAPP.Views
         {
             try
             {
-                Microsoft.Win32.SaveFileDialog dialog = new Microsoft.Win32.SaveFileDialog
+                Dialogs.SaveFileDialog dialog = new()
                 {
                     Filter = "JSON files (*.json)|*.json",
                     FileName = Sys.String.Concat("backup-presets-", Sys.DateTime.Now.ToString("yyyy-MM-dd"), ".json")
@@ -326,7 +466,7 @@ namespace MyAPP.Views
         {
             try
             {
-                Microsoft.Win32.OpenFileDialog dialog = new Microsoft.Win32.OpenFileDialog
+                Dialogs.OpenFileDialog dialog = new()
                 {
                     Filter = "JSON files (*.json)|*.json"
                 };

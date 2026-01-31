@@ -6,7 +6,7 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              mc:Ignorable="d" 
-             d:DesignHeight="900" d:DesignWidth="1400"
+             d:DesignHeight="1200" d:DesignWidth="1400"
              FontFamily="Segoe UI">
 
     <UserControl.Resources>
@@ -244,7 +244,7 @@
                             <DockPanel Margin="0,0,0,16">
                                 <StackPanel>
                                     <TextBlock Text="VARIABEL INPUT" FontWeight="Bold" FontSize="14" Foreground="#111827"/>
-                                    <TextBlock Text="Isi nilai di bawah ini untuk mengubah konten. Kosongkan untuk menggunakan nilai default." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
+                                    <TextBlock Text="Isi nilai di bawah ini untuk mengubah konten." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <Button Style="{StaticResource BtnWhite}" HorizontalAlignment="Right" Click="BtnAddVariable_Click">
                                     <StackPanel Orientation="Horizontal">
@@ -386,6 +386,75 @@
                                             </Button>
                                         </StackPanel>
                                     </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,24">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Margin="0,0,0,12">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="FILE MANAGER" FontWeight="Bold" FontSize="14" Foreground="#111827"/>
+                                        <TextBlock Text="Kelola file proyek di folder 'uploaded'." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                        <Button Style="{StaticResource BtnWhite}" Margin="0,0,8,0" Click="BtnRefreshFiles_Click" ToolTip="Refresh">
+                                            <iconPacks:PackIconMaterial Kind="Refresh" Width="14" Height="14"/>
+                                        </Button>
+                                        <Button Style="{StaticResource BtnWhite}" Margin="0,0,8,0" Click="BtnUploadFile_Click" ToolTip="Upload File">
+                                            <StackPanel Orientation="Horizontal">
+                                                <iconPacks:PackIconMaterial Kind="FileUpload" Width="14" Height="14" Margin="0,0,8,0"/>
+                                                <TextBlock Text="File"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Style="{StaticResource BtnWhite}" Margin="0,0,8,0" Click="BtnUploadFolder_Click" ToolTip="Upload Folder">
+                                            <StackPanel Orientation="Horizontal">
+                                                <iconPacks:PackIconMaterial Kind="FolderUpload" Width="14" Height="14" Margin="0,0,8,0"/>
+                                                <TextBlock Text="Folder"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <Border Grid.Row="1" Background="White" CornerRadius="12" BorderBrush="#e5e7eb" BorderThickness="1" Padding="0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Border Background="#f8f9fa" BorderBrush="#e5e7eb" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0" Padding="16,8">
+                                            <TextBlock x:Name="TxtCurrentPath" Text="uploaded/" FontFamily="Consolas" Foreground="#6b7280"/>
+                                        </Border>
+
+                                        <TreeView x:Name="TreeFiles" Grid.Row="1" BorderThickness="0" Padding="8" MinHeight="200" MaxHeight="400">
+                                            <TreeView.ItemContainerStyle>
+                                                <Style TargetType="{x:Type TreeViewItem}">
+                                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                                </Style>
+                                            </TreeView.ItemContainerStyle>
+                                            <TreeView.ItemTemplate>
+                                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
+                                                        <iconPacks:PackIconMaterial Kind="{Binding IconKind}" Foreground="{Binding IconColor}" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="#374151"/>
+                                                        <TextBlock Text="{Binding SizeDisplay}" Foreground="#9ca3af" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+
+                                                        <Button Style="{StaticResource BtnIconSquare}" Width="24" Height="24" Margin="12,0,0,0" 
+                                                                Background="Transparent" BorderThickness="0"
+                                                                Tag="{Binding}" Click="BtnDeleteFile_Click"
+                                                                ToolTip="Hapus">
+                                                            <iconPacks:PackIconMaterial Kind="Close" Width="10" Height="10" Foreground="#ef4444"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </HierarchicalDataTemplate>
+                                            </TreeView.ItemTemplate>
+                                        </TreeView>
+                                    </Grid>
                                 </Border>
                             </Grid>
                         </StackPanel>
