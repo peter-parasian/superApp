@@ -375,13 +375,13 @@
                                             <Button Style="{StaticResource BtnPrimary}" Margin="0,0,12,0" Click="BtnCopyResult_Click">
                                                 <StackPanel Orientation="Horizontal">
                                                     <iconPacks:PackIconMaterial Kind="ContentCopy" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="Salin &amp; Bersihkan" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="SALIN" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Button>
                                             <Button Style="{StaticResource BtnWhite}" Click="BtnCheckPreview_Click">
                                                 <StackPanel Orientation="Horizontal">
                                                     <iconPacks:PackIconMaterial Kind="Magnify" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="Cek Preview (Proses Variabel)" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Preview" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Button>
                                         </StackPanel>

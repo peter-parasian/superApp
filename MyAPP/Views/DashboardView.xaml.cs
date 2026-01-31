@@ -35,8 +35,6 @@ namespace MyAPP.Views
             "uploaded"
         );
 
-        // Map ekstensi file ke bahasa pemrograman untuk syntax highlighting markdown (Bagian dari fitur {{xxc}})
-        // FIX: Menghapus duplikasi key (.R dan .r) karena Dictionary menggunakan IgnoreCase
         private static readonly Coll.Dictionary<Sys.String, Sys.String> _langMap = new Coll.Dictionary<Sys.String, Sys.String>(Sys.StringComparer.OrdinalIgnoreCase)
         {
             {".py", "python"}, {".ipynb", "python"}, {".js", "javascript"}, {".mjs", "javascript"},
@@ -48,7 +46,7 @@ namespace MyAPP.Views
             {".clj", "clojure"}, {".cljs", "clojure"}, {".edn", "clojure"}, {".lisp", "lisp"},
             {".scm", "scheme"}, {".rkt", "racket"}, {".hs", "haskell"}, {".lhs", "haskell"},
             {".ml", "ocaml"}, {".mli", "ocaml"}, {".erl", "erlang"}, {".hrl", "erlang"},
-            {".ex", "elixir"}, {".exs", "elixir"}, {".r", "r"}, {".jl", "julia"}, // .R removed to prevent crash
+            {".ex", "elixir"}, {".exs", "elixir"}, {".r", "r"}, {".jl", "julia"},
             {".mat", "matlab"}, {".m", "matlab"},
             {".c", "c"}, {".h", "c"}, {".cpp", "cpp"}, {".cc", "cpp"}, {".cxx", "cpp"},
             {".hpp", "cpp"}, {".hh", "cpp"}, {".hxx", "cpp"}, {".ino", "arduino"},
@@ -440,6 +438,30 @@ namespace MyAPP.Views
                 {
                     this.ShowToast("Gagal menghapus: " + ex.Message, true);
                 }
+            }
+        }
+
+        private void ClearUploadedData()
+        {
+            if (!IO.Directory.Exists(_uploadDir)) return;
+
+            try
+            {
+                IO.DirectoryInfo dir = new IO.DirectoryInfo(_uploadDir);
+
+                foreach (IO.FileInfo file in dir.GetFiles())
+                {
+                    file.Delete();
+                }
+
+                foreach (IO.DirectoryInfo subDir in dir.GetDirectories())
+                {
+                    subDir.Delete(true);
+                }
+            }
+            catch (Sys.Exception ex)
+            {
+                Sys.Console.WriteLine($"Gagal membersihkan folder upload: {ex.Message}");
             }
         }
 
@@ -910,7 +932,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Preview Processing (Text Replacement) & {{xxc}} Logic
+        #region Preview Processing (Text Replacement) & {{xxc}}/{{xcc}} Logic
 
         private void BtnCheckPreview_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
@@ -945,7 +967,10 @@ namespace MyAPP.Views
                     }
                 }
 
-                this.ShowToast("Tersalin & input bersih");
+                this.ClearUploadedData();
+                this.LoadFileManager(); 
+
+                this.ShowToast("Tersalin, Variabel & File dibersihkan");
             }
             catch (Sys.Exception ex)
             {
@@ -958,14 +983,36 @@ namespace MyAPP.Views
         {
             Sys.String content = template.Content ?? "";
 
-            // --- FEATURE ADDITION: {{xxc}} Parsing ---
-            // Mengganti {{xxc}} dengan struktur folder, list file, dan konten kode
             if (content.Contains("{{xxc}}"))
             {
-                Sys.String xxcContent = this.GenerateXxcContent();
-                content = content.Replace("{{xxc}}", xxcContent);
+                Sys.Text.StringBuilder sb = new Sys.Text.StringBuilder();
+                if (IO.Directory.Exists(_uploadDir))
+                {
+                    sb.AppendLine("<folder_tree>");
+                    sb.AppendLine(this.GenerateTree(_uploadDir));
+                    sb.AppendLine("</folder_tree>\n");
+                    sb.AppendLine(this.GetCodeTemplate(_uploadDir));
+                }
+                else
+                {
+                    sb.AppendLine("Error: Directory not found.");
+                }
+                content = content.Replace("{{xxc}}", sb.ToString());
             }
-            // -----------------------------------------
+
+            if (content.Contains("{{xcc}}"))
+            {
+                Sys.Text.StringBuilder sb = new Sys.Text.StringBuilder();
+                if (IO.Directory.Exists(_uploadDir))
+                {
+                    sb.AppendLine(this.ListUploadedFiles(_uploadDir));
+                }
+                else
+                {
+                    sb.AppendLine("Error: Directory not found.");
+                }
+                content = content.Replace("{{xcc}}", sb.ToString());
+            }
 
             Coll.List<VariableViewModel>? variables = this.ItemsVariables.ItemsSource as Coll.List<VariableViewModel>;
 
@@ -991,30 +1038,6 @@ namespace MyAPP.Views
             }
 
             return content;
-        }
-
-        // --- Helper Methods untuk {{xxc}} ---
-
-        private Sys.String GenerateXxcContent()
-        {
-            if (!IO.Directory.Exists(_uploadDir)) return "Directory 'uploaded' not found.";
-
-            Sys.Text.StringBuilder sb = new Sys.Text.StringBuilder();
-
-            // 1. Generate Folder Tree
-            sb.AppendLine("<folder_tree>");
-            sb.AppendLine(this.GenerateTree(_uploadDir));
-            sb.AppendLine("</folder_tree>\n");
-
-            // 2. Generate File List
-            sb.AppendLine("<file_list>");
-            sb.AppendLine(this.ListUploadedFiles(_uploadDir));
-            sb.AppendLine("</file_list>\n");
-
-            // 3. Generate Code Content
-            sb.AppendLine(this.GetCodeTemplate(_uploadDir));
-
-            return sb.ToString();
         }
 
         private Sys.String GenerateTree(Sys.String dirPath, Sys.String prefix = "")
@@ -1051,7 +1074,6 @@ namespace MyAPP.Views
         {
             if (!IO.Directory.Exists(rootDir)) return "";
 
-            // Streaming (Enumerable) untuk hemat memori
             var filenames = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories)
                                         .Select(IO.Path.GetFileName)
                                         .Where(name => name != null)
@@ -1065,7 +1087,6 @@ namespace MyAPP.Views
             Sys.Text.StringBuilder entries = new Sys.Text.StringBuilder();
             if (!IO.Directory.Exists(rootDir)) return "";
 
-            // Menggunakan EnumerateFiles untuk menghindari loading array besar ke memori (4GB RAM Optimization)
             var allFiles = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories).OrderBy(f => f);
 
             foreach (var fullPath in allFiles)
@@ -1073,14 +1094,12 @@ namespace MyAPP.Views
                 try
                 {
                     IO.FileInfo fi = new IO.FileInfo(fullPath);
-                    // Skip file jika terlalu besar (> 10MB) untuk mencegah OOM pada 4GB RAM
                     if (fi.Length > 10 * 1024 * 1024) continue;
 
                     Sys.String fname = IO.Path.GetFileName(fullPath);
                     Sys.String ext = IO.Path.GetExtension(fname).ToLower();
                     Sys.String lang = _langMap.GetValueOrDefault(ext, "text");
 
-                    // Membaca text. Untuk file sangat besar, ReadAllText bisa berat, tapi dengan limit 10MB di atas masih aman.
                     Sys.String content = IO.File.ReadAllText(fullPath).TrimEnd();
 
                     entries.AppendLine($"<{fname}>\n");

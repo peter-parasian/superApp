@@ -95,6 +95,7 @@
                             Cursor="Hand"
                             Click="BtnLogin_Click"
                             Style="{DynamicResource MahApps.Styles.Button.Square.Accent}"
+                            mah:ControlsHelper.ContentCharacterCasing="Upper"
                             BorderThickness="0"
                             Foreground="White"/>
                 </StackPanel>
