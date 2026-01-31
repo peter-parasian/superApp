@@ -13,7 +13,7 @@ using TextCopy;
 using Comp = System.ComponentModel;
 using MahApps.Metro.IconPacks;
 using Obj = System.Collections.ObjectModel;
-using Dialogs = Microsoft.Win32; 
+using Dialogs = Microsoft.Win32;
 
 namespace MyAPP.Views
 {
@@ -34,6 +34,43 @@ namespace MyAPP.Views
             "MyAPP",
             "uploaded"
         );
+
+        // Map ekstensi file ke bahasa pemrograman untuk syntax highlighting markdown (Bagian dari fitur {{xxc}})
+        // FIX: Menghapus duplikasi key (.R dan .r) karena Dictionary menggunakan IgnoreCase
+        private static readonly Coll.Dictionary<Sys.String, Sys.String> _langMap = new Coll.Dictionary<Sys.String, Sys.String>(Sys.StringComparer.OrdinalIgnoreCase)
+        {
+            {".py", "python"}, {".ipynb", "python"}, {".js", "javascript"}, {".mjs", "javascript"},
+            {".cjs", "javascript"}, {".ts", "typescript"}, {".tsx", "tsx"}, {".jsx", "jsx"},
+            {".java", "java"}, {".kt", "kotlin"}, {".kts", "kotlin"}, {".cs", "csharp"},
+            {".vb", "vbnet"}, {".rb", "ruby"}, {".php", "php"}, {".go", "go"}, {".rs", "rust"},
+            {".swift", "swift"}, {".dart", "dart"}, {".scala", "scala"}, {".lua", "lua"},
+            {".pl", "perl"}, {".pm", "perl"}, {".t", "perl"}, {".groovy", "groovy"},
+            {".clj", "clojure"}, {".cljs", "clojure"}, {".edn", "clojure"}, {".lisp", "lisp"},
+            {".scm", "scheme"}, {".rkt", "racket"}, {".hs", "haskell"}, {".lhs", "haskell"},
+            {".ml", "ocaml"}, {".mli", "ocaml"}, {".erl", "erlang"}, {".hrl", "erlang"},
+            {".ex", "elixir"}, {".exs", "elixir"}, {".r", "r"}, {".jl", "julia"}, // .R removed to prevent crash
+            {".mat", "matlab"}, {".m", "matlab"},
+            {".c", "c"}, {".h", "c"}, {".cpp", "cpp"}, {".cc", "cpp"}, {".cxx", "cpp"},
+            {".hpp", "cpp"}, {".hh", "cpp"}, {".hxx", "cpp"}, {".ino", "arduino"},
+            {".asm", "assembly"}, {".s", "assembly"},
+            {".html", "html"}, {".htm", "html"}, {".xhtml", "html"}, {".xml", "xml"},
+            {".svg", "xml"}, {".css", "css"}, {".scss", "scss"}, {".sass", "sass"},
+            {".less", "less"}, {".vue", "vue"},
+            {".md", "markdown"}, {".markdown", "markdown"}, {".rst", "restructuredtext"},
+            {".tex", "latex"}, {".bib", "bibtex"}, {".txt", "text"}, {".adoc", "asciidoc"},
+            {".json", "json"}, {".jsonc", "jsonc"}, {".yaml", "yaml"}, {".yml", "yaml"},
+            {".toml", "toml"}, {".ini", "ini"}, {".cfg", "ini"}, {".conf", "ini"},
+            {".env", "env"}, {".properties", "ini"},
+            {".sh", "bash"}, {".bash", "bash"}, {".zsh", "bash"}, {".ksh", "bash"},
+            {".fish", "fish"}, {".ps1", "powershell"}, {".psm1", "powershell"},
+            {".bat", "batch"}, {".cmd", "batch"},
+            {".sql", "sql"}, {".sqlite", "sql"}, {".csv", "csv"}, {".tsv", "tsv"},
+            {"dockerfile", "docker"}, {".dockerfile", "docker"}, {".cshtml", "razor"},
+            {".razor", "razor"}, {".gradle", "gradle"}, {".make", "makefile"},
+            {"makefile", "makefile"}, {"cmakelists.txt", "cmake"}, {".cmake", "cmake"},
+            {"package.json", "json"}, {"composer.json", "json"}, {"pom.xml", "xml"},
+            {".log", "log"}, {".lock", "text"}
+        };
 
         public class VariableViewModel : Comp.INotifyPropertyChanged
         {
@@ -385,24 +422,24 @@ namespace MyAPP.Views
         {
             if (sender is Controls.Button btn && btn.Tag is FileSystemItem item)
             {
-                    try
+                try
+                {
+                    if (item.IsFolder)
                     {
-                        if (item.IsFolder)
-                        {
-                            IO.Directory.Delete(item.FullPath, true);
-                        }
-                        else
-                        {
-                            IO.File.Delete(item.FullPath);
-                        }
+                        IO.Directory.Delete(item.FullPath, true);
+                    }
+                    else
+                    {
+                        IO.File.Delete(item.FullPath);
+                    }
 
-                        this.LoadFileManager();
-                        this.ShowToast("Item berhasil dihapus");
-                    }
-                    catch (Sys.Exception ex)
-                    {
-                        this.ShowToast("Gagal menghapus: " + ex.Message, true);
-                    }
+                    this.LoadFileManager();
+                    this.ShowToast("Item berhasil dihapus");
+                }
+                catch (Sys.Exception ex)
+                {
+                    this.ShowToast("Gagal menghapus: " + ex.Message, true);
+                }
             }
         }
 
@@ -873,7 +910,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Preview Processing (Text Replacement)
+        #region Preview Processing (Text Replacement) & {{xxc}} Logic
 
         private void BtnCheckPreview_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
@@ -920,6 +957,16 @@ namespace MyAPP.Views
         private Sys.String GenerateProcessedContent(Models.Template template)
         {
             Sys.String content = template.Content ?? "";
+
+            // --- FEATURE ADDITION: {{xxc}} Parsing ---
+            // Mengganti {{xxc}} dengan struktur folder, list file, dan konten kode
+            if (content.Contains("{{xxc}}"))
+            {
+                Sys.String xxcContent = this.GenerateXxcContent();
+                content = content.Replace("{{xxc}}", xxcContent);
+            }
+            // -----------------------------------------
+
             Coll.List<VariableViewModel>? variables = this.ItemsVariables.ItemsSource as Coll.List<VariableViewModel>;
 
             if (variables == null)
@@ -944,6 +991,108 @@ namespace MyAPP.Views
             }
 
             return content;
+        }
+
+        // --- Helper Methods untuk {{xxc}} ---
+
+        private Sys.String GenerateXxcContent()
+        {
+            if (!IO.Directory.Exists(_uploadDir)) return "Directory 'uploaded' not found.";
+
+            Sys.Text.StringBuilder sb = new Sys.Text.StringBuilder();
+
+            // 1. Generate Folder Tree
+            sb.AppendLine("<folder_tree>");
+            sb.AppendLine(this.GenerateTree(_uploadDir));
+            sb.AppendLine("</folder_tree>\n");
+
+            // 2. Generate File List
+            sb.AppendLine("<file_list>");
+            sb.AppendLine(this.ListUploadedFiles(_uploadDir));
+            sb.AppendLine("</file_list>\n");
+
+            // 3. Generate Code Content
+            sb.AppendLine(this.GetCodeTemplate(_uploadDir));
+
+            return sb.ToString();
+        }
+
+        private Sys.String GenerateTree(Sys.String dirPath, Sys.String prefix = "")
+        {
+            Sys.Text.StringBuilder treeBuilder = new Sys.Text.StringBuilder();
+            if (!IO.Directory.Exists(dirPath))
+            {
+                return "Direktori tidak ditemukan.";
+            }
+
+            var directories = IO.Directory.GetDirectories(dirPath).OrderBy(d => d).ToList();
+            var files = IO.Directory.GetFiles(dirPath).OrderBy(f => f).ToList();
+
+            for (int i = 0; i < directories.Count; i++)
+            {
+                var d = directories[i];
+                bool isLast = (i == directories.Count - 1) && (files.Count == 0);
+                treeBuilder.Append($"{prefix}{(isLast ? "└──" : "├──")} {IO.Path.GetFileName(d)}/\n");
+                string newPrefix = prefix + (isLast ? "    " : "│   ");
+                treeBuilder.Append(GenerateTree(d, newPrefix));
+            }
+
+            for (int i = 0; i < files.Count; i++)
+            {
+                var f = files[i];
+                bool isLast = (i == files.Count - 1);
+                treeBuilder.Append($"{prefix}{(isLast ? "└──" : "├──")} {IO.Path.GetFileName(f)}\n");
+            }
+
+            return treeBuilder.ToString();
+        }
+
+        private Sys.String ListUploadedFiles(Sys.String rootDir)
+        {
+            if (!IO.Directory.Exists(rootDir)) return "";
+
+            // Streaming (Enumerable) untuk hemat memori
+            var filenames = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories)
+                                        .Select(IO.Path.GetFileName)
+                                        .Where(name => name != null)
+                                        .OrderBy(name => name);
+
+            return Sys.String.Join(", ", filenames.Select(name => $"`{name}`"));
+        }
+
+        private Sys.String GetCodeTemplate(Sys.String rootDir)
+        {
+            Sys.Text.StringBuilder entries = new Sys.Text.StringBuilder();
+            if (!IO.Directory.Exists(rootDir)) return "";
+
+            // Menggunakan EnumerateFiles untuk menghindari loading array besar ke memori (4GB RAM Optimization)
+            var allFiles = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories).OrderBy(f => f);
+
+            foreach (var fullPath in allFiles)
+            {
+                try
+                {
+                    IO.FileInfo fi = new IO.FileInfo(fullPath);
+                    // Skip file jika terlalu besar (> 10MB) untuk mencegah OOM pada 4GB RAM
+                    if (fi.Length > 10 * 1024 * 1024) continue;
+
+                    Sys.String fname = IO.Path.GetFileName(fullPath);
+                    Sys.String ext = IO.Path.GetExtension(fname).ToLower();
+                    Sys.String lang = _langMap.GetValueOrDefault(ext, "text");
+
+                    // Membaca text. Untuk file sangat besar, ReadAllText bisa berat, tapi dengan limit 10MB di atas masih aman.
+                    Sys.String content = IO.File.ReadAllText(fullPath).TrimEnd();
+
+                    entries.AppendLine($"<{fname}>\n");
+                    entries.AppendLine($"```{lang}\n{content}\n```\n");
+                    entries.AppendLine($"</{fname}>\n");
+                }
+                catch
+                {
+                    continue;
+                }
+            }
+            return entries.ToString().TrimEnd();
         }
 
         #endregion
