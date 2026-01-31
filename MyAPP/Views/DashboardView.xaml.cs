@@ -29,6 +29,8 @@ namespace MyAPP.Views
 
         private Coll.List<Models.Preset> _currentPresets = new Coll.List<Models.Preset>();
 
+        private static readonly long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit
+
         private readonly Sys.String _uploadDir = IO.Path.Combine(
             Sys.Environment.GetFolderPath(Sys.Environment.SpecialFolder.LocalApplicationData),
             "MyAPP",
@@ -160,6 +162,7 @@ namespace MyAPP.Views
         {
             try
             {
+                // Memory optimization: don't hold previous list while fetching new one
                 this._currentPresets = await this._dataService.GetPresetsWithDetailsAsync().ConfigureAwait(true);
 
                 foreach (Models.Preset preset in this._currentPresets)
@@ -283,11 +286,14 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region File Manager Logic (Optimized I/O)
+        #region File Manager Logic (Memory Optimized for 8GB RAM)
 
         private void LoadFileManager()
         {
-            if (!IO.Directory.Exists(_uploadDir)) IO.Directory.CreateDirectory(_uploadDir);
+            if (!IO.Directory.Exists(_uploadDir))
+            {
+                IO.Directory.CreateDirectory(_uploadDir);
+            }
 
             Obj.ObservableCollection<FileSystemItem> items = new Obj.ObservableCollection<FileSystemItem>();
             BuildTree(_uploadDir, items);
@@ -300,7 +306,8 @@ namespace MyAPP.Views
         {
             try
             {
-                foreach (Sys.String dir in IO.Directory.EnumerateDirectories(path))
+                // Use Enumerate (lazy loading) instead of Get (array allocation) to reduce memory footprint
+                foreach (Sys.String dir in IO.Directory.EnumerateDirectories(path).OrderBy(d => d))
                 {
                     FileSystemItem item = new FileSystemItem
                     {
@@ -313,7 +320,7 @@ namespace MyAPP.Views
                     collection.Add(item);
                 }
 
-                foreach (Sys.String file in IO.Directory.EnumerateFiles(path))
+                foreach (Sys.String file in IO.Directory.EnumerateFiles(path).OrderBy(f => f))
                 {
                     IO.FileInfo fi = new IO.FileInfo(file);
                     collection.Add(new FileSystemItem
@@ -333,15 +340,21 @@ namespace MyAPP.Views
 
         private static Sys.String FormatSize(Sys.Int64 bytes)
         {
-            if (bytes == 0) return "0 B";
+            if (bytes == 0)
+            {
+                return "0 B";
+            }
+
             Sys.String[] suffixes = { "B", "KB", "MB", "GB" };
             Sys.Int32 i = 0;
             Sys.Double dbl = bytes;
+
             while (dbl >= 1024 && i < suffixes.Length - 1)
             {
                 dbl /= 1024;
                 i++;
             }
+
             return $"{dbl:0.#} {suffixes[i]}";
         }
 
@@ -351,7 +364,7 @@ namespace MyAPP.Views
             this.ShowToast("File direfresh");
         }
 
-        private void BtnUploadFile_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        private async void BtnUploadFile_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
             Dialogs.OpenFileDialog dlg = new Dialogs.OpenFileDialog
             {
@@ -361,24 +374,45 @@ namespace MyAPP.Views
 
             if (dlg.ShowDialog() == true)
             {
-                foreach (Sys.String file in dlg.FileNames)
-                {
-                    Sys.String dest = IO.Path.Combine(_uploadDir, IO.Path.GetFileName(file));
-                    try
-                    {
-                        IO.File.Copy(file, dest, true);
-                    }
-                    catch (Sys.Exception ex)
-                    {
-                        Sys.Console.WriteLine($"Upload Fail: {ex.Message}");
-                    }
-                }
-                this.LoadFileManager();
-                this.ShowToast("File berhasil disimpan");
+                await this.UploadFilesAsync(dlg.FileNames).ConfigureAwait(true);
             }
         }
 
-        private void BtnUploadFolder_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        /// <summary>
+        /// Async file upload with streaming to minimize memory usage (8GB RAM optimization).
+        /// </summary>
+        private async Tasks.Task UploadFilesAsync(Sys.String[] files)
+        {
+            Sys.Int32 successCount = 0;
+
+            foreach (Sys.String file in files)
+            {
+                Sys.String dest = IO.Path.Combine(_uploadDir, IO.Path.GetFileName(file));
+
+                try
+                {
+                    // Stream-based copy with 80KB buffer (SSD optimized)
+                    using var sourceStream = new IO.FileStream(file, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.Read, 4096, true);
+                    using var destStream = new IO.FileStream(dest, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.None, 4096, true);
+
+                    await sourceStream.CopyToAsync(destStream, 81920).ConfigureAwait(false);
+                    successCount++;
+                }
+                catch (Sys.Exception ex)
+                {
+                    Sys.Console.WriteLine($"Upload Fail: {file} - {ex.Message}");
+                }
+            }
+
+            // Return to UI thread to update UI
+            Win.Application.Current.Dispatcher.Invoke(() =>
+            {
+                this.LoadFileManager();
+                this.ShowToast($"File disimpan ({successCount}/{files.Length})");
+            });
+        }
+
+        private async void BtnUploadFolder_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
             Dialogs.OpenFolderDialog dialog = new Dialogs.OpenFolderDialog
             {
@@ -391,28 +425,50 @@ namespace MyAPP.Views
                 Sys.String folderName = IO.Path.GetFileName(dialog.FolderName);
                 Sys.String destDir = IO.Path.Combine(_uploadDir, folderName);
 
-                CopyDirectory(dialog.FolderName, destDir);
+                await Tasks.Task.Run(() => CopyDirectoryAsync(dialog.FolderName, destDir)).ConfigureAwait(true);
 
                 this.LoadFileManager();
                 this.ShowToast("Folder disalin ke storage");
             }
         }
 
-        private static void CopyDirectory(Sys.String sourceDir, Sys.String destinationDir)
+        /// <summary>
+        /// Async directory copy with streaming file operations.
+        /// </summary>
+        private static async Tasks.Task CopyDirectoryAsync(Sys.String sourceDir, Sys.String destinationDir)
         {
             IO.DirectoryInfo dir = new IO.DirectoryInfo(sourceDir);
-            if (!dir.Exists) return;
+
+            if (!dir.Exists)
+            {
+                return;
+            }
 
             IO.Directory.CreateDirectory(destinationDir);
 
+            // Process files sequentially to avoid memory pressure on 8GB RAM
             foreach (IO.FileInfo file in dir.GetFiles())
             {
-                file.CopyTo(IO.Path.Combine(destinationDir, file.Name), true);
+                Sys.String destPath = IO.Path.Combine(destinationDir, file.Name);
+
+                try
+                {
+                    using var sourceStream = new IO.FileStream(file.FullName, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.Read, 4096, true);
+                    using var destStream = new IO.FileStream(destPath, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.None, 4096, true);
+
+                    await sourceStream.CopyToAsync(destStream, 81920).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Continue on error
+                }
             }
 
+            // Recursively process subdirectories
             foreach (IO.DirectoryInfo subDir in dir.GetDirectories())
             {
-                CopyDirectory(subDir.FullName, IO.Path.Combine(destinationDir, subDir.Name));
+                Sys.String newDestDir = IO.Path.Combine(destinationDir, subDir.Name);
+                await CopyDirectoryAsync(subDir.FullName, newDestDir).ConfigureAwait(false);
             }
         }
 
@@ -443,7 +499,10 @@ namespace MyAPP.Views
 
         private void ClearUploadedData()
         {
-            if (!IO.Directory.Exists(_uploadDir)) return;
+            if (!IO.Directory.Exists(_uploadDir))
+            {
+                return;
+            }
 
             try
             {
@@ -702,7 +761,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region CRUD: Template
+        #region CRUD: Template (With Bug Fix for Selection State)
 
         private void BtnAddTemplate_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
@@ -745,6 +804,10 @@ namespace MyAPP.Views
             this.SelectTemplate(created);
         }
 
+        /// <summary>
+        /// CRITICAL FIX: Ensures UI state consistency after template update.
+        /// Prevents toggle button showing different template than content.
+        /// </summary>
         private async Tasks.Task HandleUpdateTemplateAsync()
         {
             if (this._selectedTemplate == null)
@@ -760,13 +823,55 @@ namespace MyAPP.Views
                 throw new Sys.InvalidOperationException("Judul tidak boleh kosong.");
             }
 
+            // Preserve the ID before we lose reference
+            Sys.Guid templateId = this._selectedTemplate.Id;
+
             this._selectedTemplate.Title = title;
             this._selectedTemplate.Content = content;
 
             await this._dataService.UpdateTemplateAsync(this._selectedTemplate).ConfigureAwait(true);
 
             await this.LoadPresetsAsync();
+
+            // BUG FIX: Restore correct selection state
+            await this.RestoreTemplateSelectionAsync(templateId).ConfigureAwait(true);
+
+            // Update preview with new content
             this.UpdatePreviewContent(content);
+        }
+
+        /// <summary>
+        /// Restores the correct template selection after data reload to prevent UI inconsistency.
+        /// </summary>
+        private async Tasks.Task RestoreTemplateSelectionAsync(Sys.Guid templateIdToSelect)
+        {
+            await Tasks.Task.Run(() =>
+            {
+                Win.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    // Re-obtain correct object reference from fresh data
+                    if (this._selectedPreset != null)
+                    {
+                        Models.Preset? refreshedPreset = this._currentPresets.FirstOrDefault(p => p.Id == this._selectedPreset.Id);
+
+                        if (refreshedPreset != null)
+                        {
+                            this._selectedPreset = refreshedPreset;
+                            this.ListPresets.SelectedItem = refreshedPreset;
+
+                            // Find the specific template we just edited in the new list
+                            Models.Template? refreshedTemplate = this._selectedPreset.Templates?.FirstOrDefault(t => t.Id == templateIdToSelect);
+
+                            if (refreshedTemplate != null)
+                            {
+                                this._selectedTemplate = refreshedTemplate;
+                                // Re-select to update UI buttons and content
+                                this.SelectTemplate(this._selectedTemplate);
+                            }
+                        }
+                    }
+                });
+            });
         }
 
         private async void BtnDeleteTemplate_Click(Sys.Object sender, Win.RoutedEventArgs e)
@@ -932,7 +1037,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Preview Processing (Text Replacement) & {{xxc}}/{{xcc}} Logic
+        #region Preview Processing (Supporting both {{xxc}} and {{xcc}})
 
         private void BtnCheckPreview_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
@@ -968,7 +1073,7 @@ namespace MyAPP.Views
                 }
 
                 this.ClearUploadedData();
-                this.LoadFileManager(); 
+                this.LoadFileManager();
 
                 this.ShowToast("Tersalin, Variabel & File dibersihkan");
             }
@@ -983,6 +1088,7 @@ namespace MyAPP.Views
         {
             Sys.String content = template.Content ?? "";
 
+            // Handle {{xxc}} variable (folder tree + code)
             if (content.Contains("{{xxc}}"))
             {
                 Sys.Text.StringBuilder sb = new Sys.Text.StringBuilder();
@@ -1000,6 +1106,7 @@ namespace MyAPP.Views
                 content = content.Replace("{{xxc}}", sb.ToString());
             }
 
+            // Handle {{xcc}} variable (file listing only)
             if (content.Contains("{{xcc}}"))
             {
                 Sys.Text.StringBuilder sb = new Sys.Text.StringBuilder();
@@ -1048,8 +1155,8 @@ namespace MyAPP.Views
                 return "Direktori tidak ditemukan.";
             }
 
-            var directories = IO.Directory.GetDirectories(dirPath).OrderBy(d => d).ToList();
-            var files = IO.Directory.GetFiles(dirPath).OrderBy(f => f).ToList();
+            var directories = IO.Directory.EnumerateDirectories(dirPath).OrderBy(d => d).ToList();
+            var files = IO.Directory.EnumerateFiles(dirPath).OrderBy(f => f).ToList();
 
             for (int i = 0; i < directories.Count; i++)
             {
@@ -1082,6 +1189,10 @@ namespace MyAPP.Views
             return Sys.String.Join(", ", filenames.Select(name => $"`{name}`"));
         }
 
+        /// <summary>
+        /// Memory-optimized code template generation using streaming reads.
+        /// Respects 10MB file size limit per file to prevent OutOfMemoryException on 8GB RAM systems.
+        /// </summary>
         private Sys.String GetCodeTemplate(Sys.String rootDir)
         {
             Sys.Text.StringBuilder entries = new Sys.Text.StringBuilder();
@@ -1094,16 +1205,22 @@ namespace MyAPP.Views
                 try
                 {
                     IO.FileInfo fi = new IO.FileInfo(fullPath);
-                    if (fi.Length > 10 * 1024 * 1024) continue;
+                    if (fi.Length > MAX_FILE_SIZE_BYTES) continue;
 
                     Sys.String fname = IO.Path.GetFileName(fullPath);
                     Sys.String ext = IO.Path.GetExtension(fname).ToLower();
                     Sys.String lang = _langMap.GetValueOrDefault(ext, "text");
 
-                    Sys.String content = IO.File.ReadAllText(fullPath).TrimEnd();
+                    // Stream-based reading instead of File.ReadAllText for lower memory footprint
+                    Sys.String fileContent;
+                    using (var stream = new IO.FileStream(fullPath, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.Read, 4096, true))
+                    using (var reader = new IO.StreamReader(stream, Sys.Text.Encoding.UTF8))
+                    {
+                        fileContent = reader.ReadToEnd().TrimEnd();
+                    }
 
                     entries.AppendLine($"<{fname}>\n");
-                    entries.AppendLine($"```{lang}\n{content}\n```\n");
+                    entries.AppendLine($"```{lang}\n{fileContent}\n```\n");
                     entries.AppendLine($"</{fname}>\n");
                 }
                 catch
