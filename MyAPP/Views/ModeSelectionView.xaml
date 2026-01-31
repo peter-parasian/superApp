@@ -1,0 +1,152 @@
+﻿<UserControl x:Class="MyAPP.Views.ModeSelectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="900"
+             FontFamily="Segoe UI">
+
+	<Grid Background="{StaticResource BrushBg}">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="*"/>
+		</Grid.RowDefinitions>
+
+		<StackPanel Grid.Row="0" Margin="32,48,32,0" HorizontalAlignment="Center">
+			<TextBlock Text="Selamat Datang" FontSize="32" FontWeight="Bold" Foreground="#111827" HorizontalAlignment="Center"/>
+			<TextBlock Text="Silakan pilih mode aplikasi untuk melanjutkan." FontSize="16" Foreground="#6b7280" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+		</StackPanel>
+
+		<Viewbox Grid.Row="1" Margin="32" StretchDirection="DownOnly" Stretch="Uniform">
+			<Grid Width="900" Height="500">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="*"/>
+				</Grid.ColumnDefinitions>
+				<Grid.RowDefinitions>
+					<RowDefinition Height="*"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+
+				<Button Grid.Row="0" Grid.Column="0" Margin="12" Click="BtnMode1_Click" Cursor="Hand" Background="White" BorderThickness="0">
+					<Button.Template>
+						<ControlTemplate TargetType="Button">
+							<Border x:Name="border" Background="White" CornerRadius="16" Padding="24">
+								<Border.Effect>
+									<DropShadowEffect BlurRadius="15" ShadowDepth="4" Opacity="0.05" Color="Black"/>
+								</Border.Effect>
+								<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+									<Border Width="64" Height="64" CornerRadius="32" Background="#eef2ff" Margin="0,0,0,16" HorizontalAlignment="Center">
+										<iconPacks:PackIconMaterial Kind="FileDocumentEditOutline" Width="32" Height="32" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+									</Border>
+									<TextBlock Text="Preset Manager" FontWeight="Bold" FontSize="18" Foreground="{StaticResource BrushTextDark}" HorizontalAlignment="Center"/>
+									<TextBlock Text="Kelola templat dan variabel coding." FontSize="14" Foreground="{StaticResource BrushTextGray}" Margin="0,4,0,0" HorizontalAlignment="Center" TextAlignment="Center"/>
+								</StackPanel>
+							</Border>
+							<ControlTemplate.Triggers>
+								<Trigger Property="IsMouseOver" Value="True">
+									<Setter TargetName="border" Property="Effect">
+										<Setter.Value>
+											<DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.1" Color="{StaticResource ColorPrimary}"/>
+										</Setter.Value>
+									</Setter>
+									<Setter TargetName="border" Property="RenderTransform">
+										<Setter.Value>
+											<TranslateTransform Y="-4"/>
+										</Setter.Value>
+									</Setter>
+								</Trigger>
+							</ControlTemplate.Triggers>
+						</ControlTemplate>
+					</Button.Template>
+				</Button>
+
+				<Button Grid.Row="0" Grid.Column="1" Margin="12" Cursor="Hand" Background="White" BorderThickness="0">
+					<Button.Template>
+						<ControlTemplate TargetType="Button">
+							<Border x:Name="border" Background="White" CornerRadius="16" Padding="24">
+								<Border.Effect>
+									<DropShadowEffect BlurRadius="15" ShadowDepth="4" Opacity="0.05" Color="Black"/>
+								</Border.Effect>
+								<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+									<Border Width="64" Height="64" CornerRadius="32" Background="#ecfdf5" Margin="0,0,0,16" HorizontalAlignment="Center">
+										<iconPacks:PackIconMaterial Kind="Finance" Width="32" Height="32" Foreground="#059669" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+									</Border>
+									<TextBlock Text="Finance" FontWeight="Bold" FontSize="18" Foreground="{StaticResource BrushTextDark}" HorizontalAlignment="Center"/>
+									<TextBlock Text="Laporan keuangan &amp; akuntansi." FontSize="14" Foreground="{StaticResource BrushTextGray}" Margin="0,4,0,0" HorizontalAlignment="Center" TextAlignment="Center"/>
+								</StackPanel>
+							</Border>
+							<ControlTemplate.Triggers>
+								<Trigger Property="IsMouseOver" Value="True">
+									<Setter TargetName="border" Property="Effect">
+										<Setter.Value>
+											<DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.15" Color="#059669"/>
+										</Setter.Value>
+									</Setter>
+								</Trigger>
+							</ControlTemplate.Triggers>
+						</ControlTemplate>
+					</Button.Template>
+				</Button>
+
+				<Button Grid.Row="1" Grid.Column="0" Margin="12" Cursor="Hand" Background="White" BorderThickness="0">
+					<Button.Template>
+						<ControlTemplate TargetType="Button">
+							<Border x:Name="border" Background="White" CornerRadius="16" Padding="24">
+								<Border.Effect>
+									<DropShadowEffect BlurRadius="15" ShadowDepth="4" Opacity="0.05" Color="Black"/>
+								</Border.Effect>
+								<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+									<Border Width="64" Height="64" CornerRadius="32" Background="#fff1f2" Margin="0,0,0,16" HorizontalAlignment="Center">
+										<iconPacks:PackIconMaterial Kind="AccountGroupOutline" Width="32" Height="32" Foreground="#e11d48" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+									</Border>
+									<TextBlock Text="Human Resource" FontWeight="Bold" FontSize="18" Foreground="{StaticResource BrushTextDark}" HorizontalAlignment="Center"/>
+									<TextBlock Text="Manajemen karyawan &amp; payroll." FontSize="14" Foreground="{StaticResource BrushTextGray}" Margin="0,4,0,0" HorizontalAlignment="Center" TextAlignment="Center"/>
+								</StackPanel>
+							</Border>
+							<ControlTemplate.Triggers>
+								<Trigger Property="IsMouseOver" Value="True">
+									<Setter TargetName="border" Property="Effect">
+										<Setter.Value>
+											<DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.15" Color="#e11d48"/>
+										</Setter.Value>
+									</Setter>
+								</Trigger>
+							</ControlTemplate.Triggers>
+						</ControlTemplate>
+					</Button.Template>
+				</Button>
+
+				<Button Grid.Row="1" Grid.Column="1" Margin="12" Cursor="Hand" Background="White" BorderThickness="0">
+					<Button.Template>
+						<ControlTemplate TargetType="Button">
+							<Border x:Name="border" Background="White" CornerRadius="16" Padding="24">
+								<Border.Effect>
+									<DropShadowEffect BlurRadius="15" ShadowDepth="4" Opacity="0.05" Color="Black"/>
+								</Border.Effect>
+								<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+									<Border Width="64" Height="64" CornerRadius="32" Background="#f3f4f6" Margin="0,0,0,16" HorizontalAlignment="Center">
+										<iconPacks:PackIconMaterial Kind="CogOutline" Width="32" Height="32" Foreground="#4b5563" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+									</Border>
+									<TextBlock Text="Pengaturan" FontWeight="Bold" FontSize="18" Foreground="{StaticResource BrushTextDark}" HorizontalAlignment="Center"/>
+									<TextBlock Text="Konfigurasi sistem &amp; pengguna." FontSize="14" Foreground="{StaticResource BrushTextGray}" Margin="0,4,0,0" HorizontalAlignment="Center" TextAlignment="Center"/>
+								</StackPanel>
+							</Border>
+							<ControlTemplate.Triggers>
+								<Trigger Property="IsMouseOver" Value="True">
+									<Setter TargetName="border" Property="Effect">
+										<Setter.Value>
+											<DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.15" Color="#4b5563"/>
+										</Setter.Value>
+									</Setter>
+								</Trigger>
+							</ControlTemplate.Triggers>
+						</ControlTemplate>
+					</Button.Template>
+				</Button>
+			</Grid>
+		</Viewbox>
+	</Grid>
+</UserControl>

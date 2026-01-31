@@ -1,0 +1,104 @@
+﻿<UserControl x:Class="MyAPP.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks">
+
+    <Grid>
+        <Grid.Background>
+            <RadialGradientBrush Center="0.5,0.5"
+                                 GradientOrigin="0.5,0.5"
+                                 RadiusX="0.8"
+                                 RadiusY="0.8">
+                <GradientStop Color="#FF005C97" Offset="0.0" />
+                <GradientStop Color="#FF0F2027" Offset="1.0" />
+            </RadialGradientBrush>
+        </Grid.Background>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" VerticalAlignment="Center">
+
+            <Border Width="380"
+                    MaxWidth="380"
+                    MinWidth="300"
+                    Padding="35,50,35,50"
+                    Background="White"
+                    CornerRadius="10"
+                    BorderThickness="0,4,0,0"
+                    BorderBrush="{DynamicResource MahApps.Brushes.Accent}"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Margin="10">
+
+                <StackPanel>
+
+                    <TextBox x:Name="TxtEmail"
+                             Height="45"
+                             FontSize="15"
+                             mah:TextBoxHelper.Watermark="Email Address"
+                             mah:TextBoxHelper.UseFloatingWatermark="True"
+                             mah:TextBoxHelper.ClearTextButton="True"
+                             BorderThickness="0,0,0,1"
+                             Margin="0,0,0,20"
+                             Background="Transparent"
+                             KeyDown="TxtEmail_KeyDown"/>
+
+                    <Grid Margin="0,0,0,40">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="40" />
+                        </Grid.ColumnDefinitions>
+
+                        <PasswordBox x:Name="TxtPassword"
+                                     Height="45"
+                                     FontSize="15"
+                                     mah:TextBoxHelper.Watermark="Password"
+                                     mah:TextBoxHelper.UseFloatingWatermark="True"
+                                     BorderThickness="0,0,0,1"
+                                     Background="Transparent"
+                                     PasswordChanged="TxtPassword_PasswordChanged"
+                                     KeyDown="TxtPassword_KeyDown"/>
+
+                        <TextBox x:Name="TxtPasswordVisible"
+                                 Height="45"
+                                 FontSize="15"
+                                 mah:TextBoxHelper.Watermark="Password"
+                                 mah:TextBoxHelper.UseFloatingWatermark="True"
+                                 BorderThickness="0,0,0,1"
+                                 Background="Transparent"
+                                 Visibility="Collapsed"
+                                 KeyDown="TxtPassword_KeyDown"/>
+
+                        <Button Grid.Column="1"
+                                Width="40"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Click="BtnTogglePassword_Click">
+                            <iconPacks:PackIconMaterial x:Name="IconEye"
+                                                        Kind="EyeOffOutline"
+                                                        Width="22"
+                                                        Height="22"/>
+                        </Button>
+                    </Grid>
+
+                    <Button x:Name="BtnLogin"
+                            Height="50"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Content="LOGIN"
+                            Cursor="Hand"
+                            Click="BtnLogin_Click"
+                            Style="{DynamicResource MahApps.Styles.Button.Square.Accent}"
+                            BorderThickness="0"
+                            Foreground="White"/>
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
