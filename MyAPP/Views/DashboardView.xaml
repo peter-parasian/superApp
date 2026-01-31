@@ -208,153 +208,188 @@
                     <StackPanel x:Name="ViewActivePreset" Visibility="Collapsed">
 
                         <TextBlock x:Name="TxtActivePresetName" Text="PILIH PRESET" FontSize="32" FontWeight="Bold" Foreground="#111827"/>
-                        <TextBlock Text="Pilih preset dari daftar untuk mulai mengelola." FontSize="14" Foreground="#6b7280" Margin="0,4,0,24"/>
+                        <TextBlock x:Name="TxtActivePresetSubtitle" Text="Pilih preset dari daftar untuk mulai mengelola." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
 
-                        <DockPanel Margin="0,0,0,24">
-                            <WrapPanel Orientation="Horizontal" DockPanel.Dock="Left" x:Name="WrapTemplateButtons" VerticalAlignment="Center">
-                            </WrapPanel>
+                        <Border BorderBrush="#e5e7eb" BorderThickness="0,0,0,1" Margin="0,16,0,24" />
 
-                            <Button Style="{StaticResource BtnPrimary}" HorizontalAlignment="Right" Click="BtnAddTemplate_Click" Margin="12,0,0,0">
+                        <Grid x:Name="PanelEmptyState" Visibility="Collapsed" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="Belum ada templat." FontStyle="Italic" FontSize="15" Foreground="#6b7280" VerticalAlignment="Center"/>
+
+                            <Button Grid.Column="1" Style="{StaticResource BtnPrimary}" Click="BtnAddTemplate_Click" Padding="24,10">
                                 <StackPanel Orientation="Horizontal">
                                     <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <TextBlock Text="Templat" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                        </DockPanel>
-
-                        <DockPanel Margin="0,0,0,16">
-                            <StackPanel>
-                                <TextBlock Text="VARIABEL INPUT" FontWeight="Bold" FontSize="14" Foreground="#111827"/>
-                                <TextBlock Text="Isi nilai di bawah ini untuk mengubah konten. Kosongkan untuk menggunakan nilai default." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
-                            </StackPanel>
-                            <Button Style="{StaticResource BtnWhite}" HorizontalAlignment="Right" Click="BtnAddVariable_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Variabel" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                        </DockPanel>
-
-                        <ItemsControl x:Name="ItemsVariables">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="White" CornerRadius="12" BorderThickness="0" Margin="0,0,20,20" Width="380" Padding="20">
-                                        <Border.Effect>
-                                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.03" Color="Black" Direction="270"/>
-                                        </Border.Effect>
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-
-                                            <Grid Grid.Row="0" Margin="0,0,0,16">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <Border HorizontalAlignment="Left" Background="#eef2ff" CornerRadius="20" Padding="16,6">
-                                                    <TextBlock Text="{Binding Name, StringFormat='{}{0}'}" FontFamily="Consolas" FontWeight="Bold" Foreground="#4f46e5" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
-                                                </Border>
-
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                    <Button Style="{StaticResource BtnIconSquare}" Margin="0,0,8,0"
-                                                                Tag="{Binding}" Click="BtnEditVariable_Click">
-                                                        <iconPacks:PackIconMaterial Kind="PencilOutline" Width="16" Height="16"/>
-                                                    </Button>
-                                                    <Button Style="{StaticResource BtnIconSquare}"
-                                                                Tag="{Binding}" Click="BtnDeleteVariable_Click">
-                                                        <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="16" Height="16"/>
-                                                    </Button>
-                                                </StackPanel>
-                                            </Grid>
-
-                                            <Border Grid.Row="1" Background="#f9fafb" CornerRadius="8" Padding="12" MinHeight="100" BorderBrush="#e5e7eb" BorderThickness="1">
-                                                <TextBox Text="{Binding CurrentValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                                                         mah:TextBoxHelper.Watermark="{Binding OriginalValue, StringFormat='Default: {0}'}"
-                                                         mah:TextBoxHelper.UseFloatingWatermark="True"
-                                                         Background="Transparent" 
-                                                         BorderThickness="0"
-                                                         FontSize="14"
-                                                         TextWrapping="Wrap"
-                                                         AcceptsReturn="True"
-                                                         VerticalScrollBarVisibility="Auto"
-                                                         Height="100"
-                                                         Tag="{Binding}"/>
-                                            </Border>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <Grid Margin="0,24,0,50">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <Border Background="White" CornerRadius="12,12,0,0" BorderBrush="#e5e7eb" BorderThickness="1,1,1,0" Padding="20,16">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border Background="#0d6efd" CornerRadius="6" Padding="10,4" Margin="0,0,12,0">
-                                            <TextBlock Text="PREVIEW" FontSize="11" FontWeight="Bold" Foreground="White"/>
-                                        </Border>
-                                        <TextBlock Text="Hasil akhir konten" FontSize="14" Foreground="#4b5563" VerticalAlignment="Center"/>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                        <Button Content="Edit Konten" Background="Transparent" Foreground="#0d6efd" FontWeight="Bold" 
-                                                BorderThickness="0" Cursor="Hand" Margin="0,0,12,0"
-                                                Click="BtnEditPreviewContent_Click"/>
-                                        <Button Style="{StaticResource BtnIconSquare}" Width="32" Height="32" Click="BtnDeleteTemplate_Click">
-                                            <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="14" Height="14"/>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-
-                            <Border Grid.Row="1" Background="White" CornerRadius="0,0,12,12" BorderBrush="#e5e7eb" BorderThickness="1,0,1,1" Padding="24">
-                                <StackPanel>
-                                    <Border Background="#fcfcfc" BorderBrush="#f3f4f6" BorderThickness="1" CornerRadius="8" Padding="20" MinHeight="200">
-                                        <TextBlock x:Name="TxtPreviewContent" FontFamily="Consolas" FontSize="14" Foreground="#374151" LineHeight="22" TextWrapping="Wrap"
-                                                   Text="Pilih preset dan template untuk melihat konten preview."/>
-                                    </Border>
-
-                                    <Border Background="#eff6ff" CornerRadius="8" Padding="16" Margin="0,16,0,0"
-                                            Visibility="{Binding Visibility, ElementName=TxtProcessedPreview}">
-                                        <TextBlock x:Name="TxtProcessedPreview" FontFamily="Consolas" FontSize="14" Foreground="#0d6efd" LineHeight="22" TextWrapping="Wrap" 
-                                                   Visibility="Collapsed"/>
-                                    </Border>
-
-                                    <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
-                                        <Button Style="{StaticResource BtnPrimary}" Margin="0,0,12,0" Click="BtnCopyResult_Click">
-                                            <StackPanel Orientation="Horizontal">
-                                                <iconPacks:PackIconMaterial Kind="ContentCopy" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Salin &amp; Bersihkan" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Button>
-                                        <Button Style="{StaticResource BtnWhite}" Click="BtnCheckPreview_Click">
-                                            <StackPanel Orientation="Horizontal">
-                                                <iconPacks:PackIconMaterial Kind="Magnify" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Cek Preview (Proses Variabel)" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
                         </Grid>
+
+                        <StackPanel x:Name="PanelContent" Visibility="Visible">
+                            <DockPanel Margin="0,0,0,24">
+                                <WrapPanel Orientation="Horizontal" DockPanel.Dock="Left" x:Name="WrapTemplateButtons" VerticalAlignment="Center">
+                                </WrapPanel>
+
+                                <Button Style="{StaticResource BtnPrimary}" HorizontalAlignment="Right" Click="BtnAddTemplate_Click" Margin="12,0,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Templat" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </DockPanel>
+
+                            <DockPanel Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="VARIABEL INPUT" FontWeight="Bold" FontSize="14" Foreground="#111827"/>
+                                    <TextBlock Text="Isi nilai di bawah ini untuk mengubah konten. Kosongkan untuk menggunakan nilai default." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
+                                </StackPanel>
+                                <Button Style="{StaticResource BtnWhite}" HorizontalAlignment="Right" Click="BtnAddVariable_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Variabel" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </DockPanel>
+
+                            <Border x:Name="PanelEmptyVariables" Visibility="Collapsed" Background="#f8f9fa" BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="12" Padding="40" Margin="0,0,0,24">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <iconPacks:PackIconMaterial Kind="Tag" Width="48" Height="48" Foreground="#fbbf24" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                                    <TextBlock Text="Tidak ada variabel" FontSize="16" FontWeight="Bold" Foreground="#374151" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Templat ini belum memiliki variabel dinamis." FontSize="14" Foreground="#6b7280" HorizontalAlignment="Center" Margin="0,0,0,24"/>
+                                    <Button Style="{StaticResource BtnWhite}" Click="BtnAddVariable_Click" HorizontalAlignment="Center" Padding="20,10">
+                                        <StackPanel Orientation="Horizontal">
+                                            <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Tambah Variabel" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <ItemsControl x:Name="ItemsVariables">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="White" CornerRadius="12" BorderThickness="0" Margin="0,0,20,20" Width="380" Padding="20">
+                                            <Border.Effect>
+                                                <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.03" Color="Black" Direction="270"/>
+                                            </Border.Effect>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <Grid Grid.Row="0" Margin="0,0,0,16">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Border HorizontalAlignment="Left" Background="#eef2ff" CornerRadius="20" Padding="16,6">
+                                                        <TextBlock Text="{Binding Name, StringFormat='{}{0}'}" FontFamily="Consolas" FontWeight="Bold" Foreground="#4f46e5" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                        <Button Style="{StaticResource BtnIconSquare}" Margin="0,0,8,0"
+                                                                Tag="{Binding}" Click="BtnEditVariable_Click">
+                                                            <iconPacks:PackIconMaterial Kind="PencilOutline" Width="16" Height="16"/>
+                                                        </Button>
+                                                        <Button Style="{StaticResource BtnIconSquare}"
+                                                                Tag="{Binding}" Click="BtnDeleteVariable_Click">
+                                                            <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="16" Height="16"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <Border Grid.Row="1" Background="#f9fafb" CornerRadius="8" Padding="12" MinHeight="100" BorderBrush="#e5e7eb" BorderThickness="1">
+                                                    <TextBox Text="{Binding CurrentValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                             mah:TextBoxHelper.Watermark="{Binding OriginalValue, StringFormat='Default: {0}'}"
+                                                             mah:TextBoxHelper.UseFloatingWatermark="True"
+                                                             Background="Transparent" 
+                                                             BorderThickness="0"
+                                                             FontSize="14"
+                                                             TextWrapping="Wrap"
+                                                             AcceptsReturn="True"
+                                                             VerticalScrollBarVisibility="Auto"
+                                                             Height="100"
+                                                             Tag="{Binding}"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Grid Margin="0,24,0,50">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Background="White" CornerRadius="12,12,0,0" BorderBrush="#e5e7eb" BorderThickness="1,1,1,0" Padding="20,16">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Background="#0d6efd" CornerRadius="6" Padding="10,4" Margin="0,0,12,0">
+                                                <TextBlock Text="PREVIEW" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                            <TextBlock Text="Hasil akhir konten" FontSize="14" Foreground="#4b5563" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <Button Content="Edit Konten" Background="Transparent" Foreground="#0d6efd" FontWeight="Bold" 
+                                                    BorderThickness="0" Cursor="Hand" Margin="0,0,12,0"
+                                                    Click="BtnEditPreviewContent_Click"/>
+                                            <Button Style="{StaticResource BtnIconSquare}" Width="32" Height="32" Click="BtnDeleteTemplate_Click">
+                                                <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="14" Height="14"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Row="1" Background="White" CornerRadius="0,0,12,12" BorderBrush="#e5e7eb" BorderThickness="1,0,1,1" Padding="24">
+                                    <StackPanel>
+                                        <Border Background="#fcfcfc" BorderBrush="#f3f4f6" BorderThickness="1" CornerRadius="8" Padding="20" MinHeight="200">
+                                            <TextBlock x:Name="TxtPreviewContent" FontFamily="Consolas" FontSize="14" Foreground="#374151" LineHeight="22" TextWrapping="Wrap"
+                                                       Text="Pilih preset dan template untuk melihat konten preview."/>
+                                        </Border>
+
+                                        <Border Background="#eff6ff" CornerRadius="8" Padding="16" Margin="0,16,0,0"
+                                                Visibility="{Binding Visibility, ElementName=TxtProcessedPreview}">
+                                            <TextBlock x:Name="TxtProcessedPreview" FontFamily="Consolas" FontSize="14" Foreground="#0d6efd" LineHeight="22" TextWrapping="Wrap" 
+                                                       Visibility="Collapsed"/>
+                                        </Border>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+                                            <Button Style="{StaticResource BtnPrimary}" Margin="0,0,12,0" Click="BtnCopyResult_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <iconPacks:PackIconMaterial Kind="ContentCopy" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Salin &amp; Bersihkan" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Style="{StaticResource BtnWhite}" Click="BtnCheckPreview_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <iconPacks:PackIconMaterial Kind="Magnify" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Cek Preview (Proses Variabel)" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

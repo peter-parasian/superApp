@@ -208,6 +208,8 @@ namespace MyAPP.Views
             if (this._selectedTemplate == null)
             {
                 this.ItemsVariables.ItemsSource = null;
+                this.ItemsVariables.Visibility = Win.Visibility.Collapsed;
+                this.PanelEmptyVariables.Visibility = Win.Visibility.Collapsed;
                 return;
             }
 
@@ -230,6 +232,17 @@ namespace MyAPP.Views
 
             this.ItemsVariables.ItemsSource = viewModels;
             this.TxtProcessedPreview.Visibility = Win.Visibility.Collapsed;
+
+            if (viewModels.Count == 0)
+            {
+                this.ItemsVariables.Visibility = Win.Visibility.Collapsed;
+                this.PanelEmptyVariables.Visibility = Win.Visibility.Visible;
+            }
+            else
+            {
+                this.ItemsVariables.Visibility = Win.Visibility.Visible;
+                this.PanelEmptyVariables.Visibility = Win.Visibility.Collapsed;
+            }
         }
 
         #endregion
@@ -246,6 +259,10 @@ namespace MyAPP.Views
 
                 if (preset.Templates != null && preset.Templates.Count > 0)
                 {
+                    this.PanelContent.Visibility = Win.Visibility.Visible;
+                    this.PanelEmptyState.Visibility = Win.Visibility.Collapsed;
+                    this.TxtActivePresetSubtitle.Text = "Pilih preset dari daftar untuk mulai mengelola.";
+
                     this.SelectTemplate(preset.Templates[0]);
                 }
                 else
@@ -253,8 +270,12 @@ namespace MyAPP.Views
                     this._selectedTemplate = null;
                     this.WrapTemplateButtons.Children.Clear();
                     this.ItemsVariables.ItemsSource = null;
-                    this.TxtPreviewContent.Text = "Tidak ada templat. Buat templat baru.";
+                    this.TxtPreviewContent.Text = "";
                     this.TxtProcessedPreview.Visibility = Win.Visibility.Collapsed;
+
+                    this.PanelContent.Visibility = Win.Visibility.Collapsed;
+                    this.PanelEmptyState.Visibility = Win.Visibility.Visible;
+                    this.TxtActivePresetSubtitle.Text = "Terakhir diperbarui: Baru saja";
                 }
             }
         }
@@ -372,7 +393,7 @@ namespace MyAPP.Views
                 }
 
                 this.BtnCloseModal_Click(sender, e);
-                this.ShowToast("Disimpan"); 
+                this.ShowToast("Disimpan");
             }
             catch (Sys.Exception ex)
             {
