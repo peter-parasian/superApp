@@ -1,0 +1,44 @@
+## Folder hasil build (Sangat Penting)
+[Bb]in/
+[Oo]bj/
+[Aa]rm/
+[Aa]rm64/
+[Xx]64/
+[Xx]86/
+
+## Folder khusus Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Folder khusus VS Code
+.vscode/
+
+## Publish output
+publish/
+*.publish.xml
+
+## Rider / JetBrains
+.idea/
+*.sln.iml
+
+## File User Settings
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Folder Test & Coverage
+TestResults/
+*.sequenced
+Actual/
+
+## File sistem (Windows/Mac)
+Thumbs.db
+desktop.ini
+.DS_Store
+
+## Environment variables (Penting: Jangan upload secret keys!)
+.env
+appsettings.Development.json
