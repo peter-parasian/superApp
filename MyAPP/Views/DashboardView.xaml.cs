@@ -1,200 +1,780 @@
-﻿using System.Collections.Generic;
-using System.Windows;
-using System.Windows.Controls;
+﻿using Sys = System;
+using Win = System.Windows;
+using Controls = System.Windows.Controls;
+using Msg = System.Windows.MessageBox;
+using MsgButton = System.Windows.MessageBoxButton;
+using MsgImage = System.Windows.MessageBoxImage;
+using MsgBoxResult = System.Windows.MessageBoxResult;
+using Tasks = System.Threading.Tasks;
+using Coll = System.Collections.Generic;
+using Models = MyAPP.Models;
+using Services = MyAPP.Services;
+using Linq = System.Linq;
+using IO = System.IO;
+using Json = System.Text.Json;
+using Windows = System.Windows;
+using Media = System.Windows.Media;
+using TextCopy;
 
 namespace MyAPP.Views
 {
-    public partial class DashboardView : UserControl
+    public partial class DashboardView : Controls.UserControl
     {
-        public class PresetItem
-        {
-            public string Name { get; set; } = string.Empty;
-        }
-
-        public class VariableItem
-        {
-            public string Key { get; set; } = string.Empty;
-            public string DefaultValue { get; set; } = string.Empty;
-            public string Template { get; set; } = "SIMPLE_1";
-        }
-
         private enum ModalMode { None, NewPreset, EditPreset, NewVariable, EditVariable, NewTemplate, EditTemplate }
 
+        private readonly Services.SupabaseDataService _dataService;
         private ModalMode _currentMode = ModalMode.None;
-        private object? _currentItem = null;
+        private Models.Preset? _selectedPreset = null;
+        private Models.Template? _selectedTemplate = null;
+        private Models.Variable? _editingVariable = null;
 
-        public DashboardView()
+        private Coll.List<Models.Preset> _currentPresets = new Coll.List<Models.Preset>();
+        private Coll.List<Models.Template> _currentTemplates = new Coll.List<Models.Template>();
+        private Coll.List<Models.Variable> _currentVariables = new Coll.List<Models.Variable>();
+
+        public class VariableViewModel
         {
-            InitializeComponent();
-            LoadDummyData();
-        }
+            public Sys.Guid Id { get; set; }
+            public Sys.Guid TemplateId { get; set; }
+            public Sys.String Name { get; set; } = string.Empty;
+            public Sys.String? OriginalValue { get; set; }
+            public Sys.String CurrentValue { get; set; } = string.Empty;
 
-        private void LoadDummyData()
-        {
-            ListPresets.ItemsSource = new List<PresetItem>
+            public Models.Variable ToModel()
             {
-                new() { Name = "RANGKUM" },
-                new() { Name = "C (NOT FIX)_1" },
-                new() { Name = "NOTEPAD" },
-                new() { Name = "C (NOT FIX)_2" },
-                new() { Name = "MODERN C" },
-                new() { Name = "GITHUB" }
-            };
-
-            ItemsVariables.ItemsSource = new List<VariableItem>
-            {
-                new() { Key = "{{theme}}", DefaultValue = "Isi nilai variabel...", Template = "SIMPLE_1" },
-                new() { Key = "{{transcripttitle}}", DefaultValue = "Isi nilai variabel...", Template = "SIMPLE_2" },
-                new() { Key = "{{transcript}}", DefaultValue = "Isi nilai variabel...", Template = "DEPTH" }
-            };
-
-            InputVarTemplate.ItemsSource = new List<string> { "SIMPLE_1", "SIMPLE_2", "DEPTH" };
-        }
-
-        private void ListPresets_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (ListPresets.SelectedItem is PresetItem item)
-            {
-                TxtActivePresetName.Text = item.Name;
+                return new Models.Variable
+                {
+                    Id = this.Id,
+                    TemplateId = this.TemplateId,
+                    Name = this.Name,
+                    Value = this.CurrentValue
+                };
             }
         }
 
-        private void BtnBackToMenu_Click(object sender, RoutedEventArgs e)
+        public DashboardView()
         {
-            Window? window = Window.GetWindow(this);
+            this.InitializeComponent();
+            this._dataService = new Services.SupabaseDataService();
+            this.Loaded += async (s, e) => await this.LoadPresetsAsync();
+        }
+
+        #region Data Loading
+
+        private async Tasks.Task LoadPresetsAsync()
+        {
+            try
+            {
+                this._currentPresets = await this._dataService.GetPresetsWithDetailsAsync().ConfigureAwait(true);
+
+                foreach (Models.Preset preset in this._currentPresets)
+                {
+                    int varCount = 0;
+                    if (preset.Templates != null)
+                    {
+                        foreach (Models.Template template in preset.Templates)
+                        {
+                            if (template.Variables != null)
+                            {
+                                varCount += template.Variables.Count;
+                            }
+                        }
+                    }
+                    preset.UserId = Sys.Guid.Empty;
+                }
+
+                this.TxtPresetCount.Text = Sys.String.Concat(this._currentPresets.Count.ToString(), " preset");
+                this.ListPresets.ItemsSource = this._currentPresets;
+
+                if (this._currentPresets.Count > 0 && this._selectedPreset == null)
+                {
+                    this.ListPresets.SelectedIndex = 0;
+                }
+                else if (this._selectedPreset != null)
+                {
+                    Models.Preset? existing = this._currentPresets.FirstOrDefault(p => p.Id == this._selectedPreset.Id);
+                    if (existing != null)
+                    {
+                        this.ListPresets.SelectedItem = existing;
+                    }
+                }
+                else
+                {
+                    this.ViewActivePreset.Visibility = Win.Visibility.Collapsed;
+                }
+            }
+            catch (Sys.Exception ex)
+            {
+                Sys.Console.WriteLine(Sys.String.Concat("LoadPresets Error: ", ex));
+                Msg.Show(Sys.String.Concat("Gagal memuat preset: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+            }
+        }
+
+        private void LoadTemplatesUI()
+        {
+            this.WrapTemplateButtons.Children.Clear();
+
+            if (this._selectedPreset?.Templates == null)
+            {
+                return;
+            }
+
+            foreach (Models.Template template in this._selectedPreset.Templates)
+            {
+                Controls.Button btn = new Controls.Button
+                {
+                    Content = Sys.String.Concat("📄 ", template.Title),
+                    Tag = template,
+                    Margin = new Windows.Thickness(0, 0, 8, 8),
+                    Height = 38,
+                    Padding = new Windows.Thickness(16, 0, 16, 0)
+                };
+
+                if (this._selectedTemplate != null && this._selectedTemplate.Id == template.Id)
+                {
+                    btn.Style = (Win.Style)this.FindResource("TemplateTabActiveStyle");
+                }
+                else
+                {
+                    btn.Style = (Win.Style)this.FindResource("TemplateTabStyle");
+                }
+
+                btn.Click += (s, e) => this.SelectTemplate(template);
+
+                this.WrapTemplateButtons.Children.Add(btn);
+            }
+        }
+
+        private void SelectTemplate(Models.Template template)
+        {
+            this._selectedTemplate = template;
+            this.LoadTemplatesUI();
+            this.LoadVariablesForCurrentTemplate();
+            this.UpdatePreviewContent(template.Content);
+        }
+
+        private void LoadVariablesForCurrentTemplate()
+        {
+            if (this._selectedTemplate == null)
+            {
+                this.ItemsVariables.ItemsSource = null;
+                return;
+            }
+
+            Coll.List<VariableViewModel> viewModels = new Coll.List<VariableViewModel>();
+
+            if (this._selectedTemplate.Variables != null)
+            {
+                foreach (Models.Variable variable in this._selectedTemplate.Variables)
+                {
+                    viewModels.Add(new VariableViewModel
+                    {
+                        Id = variable.Id,
+                        TemplateId = variable.TemplateId,
+                        Name = variable.Name,
+                        OriginalValue = variable.Value,
+                        CurrentValue = variable.Value ?? string.Empty
+                    });
+                }
+            }
+
+            this.ItemsVariables.ItemsSource = viewModels;
+            this.TxtProcessedPreview.Visibility = Win.Visibility.Collapsed;
+        }
+
+        #endregion
+
+        #region UI Event Handlers
+
+        private void ListPresets_SelectionChanged(Sys.Object sender, Controls.SelectionChangedEventArgs e)
+        {
+            if (this.ListPresets.SelectedItem is Models.Preset preset)
+            {
+                this._selectedPreset = preset;
+                this.TxtActivePresetName.Text = preset.Name;
+                this.ViewActivePreset.Visibility = Win.Visibility.Visible;
+
+                if (preset.Templates != null && preset.Templates.Count > 0)
+                {
+                    this.SelectTemplate(preset.Templates[0]);
+                }
+                else
+                {
+                    this._selectedTemplate = null;
+                    this.WrapTemplateButtons.Children.Clear();
+                    this.ItemsVariables.ItemsSource = null;
+                    this.TxtPreviewContent.Text = "Tidak ada templat. Buat templat baru.";
+                    this.TxtProcessedPreview.Visibility = Win.Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void BtnBackToMenu_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            Win.Window? window = Win.Window.GetWindow(this);
             if (window is MyAPP.MainWindow mainWindow)
             {
                 mainWindow.ShowModeSelection();
             }
         }
 
-        private void OpenModal(string title, string icon = "📝")
+        private void BtnLogout_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
-            ModalTitle.Text = title;
-            ModalIcon.Text = icon;
-            ModalOverlay.Visibility = Visibility.Visible;
+            Services.AuthState.ClearToken();
 
-            FormPreset.Visibility = Visibility.Collapsed;
-            FormVariable.Visibility = Visibility.Collapsed;
-            FormTemplate.Visibility = Visibility.Collapsed;
-        }
-
-        private void BtnCloseModal_Click(object sender, RoutedEventArgs e)
-        {
-            ModalOverlay.Visibility = Visibility.Collapsed;
-            _currentMode = ModalMode.None;
-            _currentItem = null;
-        }
-
-        private void BtnSaveModal_Click(object sender, RoutedEventArgs e)
-        {
-
-            if (_currentMode == ModalMode.EditTemplate || _currentMode == ModalMode.NewTemplate)
-            {
-                TxtPreviewContent.Text = InputTemplateContent.Text;
-            }
-            else if (_currentMode == ModalMode.EditPreset && _currentItem is PresetItem pItem)
-            {
-                pItem.Name = InputPresetName.Text;
-                ListPresets.Items.Refresh();
-            }
-            else if (_currentMode == ModalMode.EditVariable && _currentItem is VariableItem vItem)
-            {
-                vItem.Key = InputVarKey.Text;
-                vItem.DefaultValue = InputVarValue.Text;
-                vItem.Template = InputVarTemplate.SelectedItem?.ToString() ?? "SIMPLE_1";
-                ItemsVariables.Items.Refresh();
-            }
-
-            MessageBox.Show("Data berhasil disimpan!", "Sukses", MessageBoxButton.OK, MessageBoxImage.Information);
-            BtnCloseModal_Click(sender, e);
-        }
-
-        private void BtnNewPreset_Click(object sender, RoutedEventArgs e)
-        {
-            _currentMode = ModalMode.NewPreset;
-            OpenModal("Buat Preset Baru");
-            FormPreset.Visibility = Visibility.Visible;
-            InputPresetName.Text = "";
-        }
-
-        private void BtnEditPreset_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is PresetItem item)
-            {
-                _currentMode = ModalMode.EditPreset;
-                _currentItem = item;
-                OpenModal("Edit Preset");
-                FormPreset.Visibility = Visibility.Visible;
-                InputPresetName.Text = item.Name;
-            }
-        }
-
-        private void BtnDeletePreset_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Apakah Anda yakin ingin menghapus preset ini?", "Konfirmasi", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        }
-
-        private void BtnAddVariable_Click(object sender, RoutedEventArgs e)
-        {
-            _currentMode = ModalMode.NewVariable;
-            OpenModal("Kelola Variabel", "🏷️");
-            FormVariable.Visibility = Visibility.Visible;
-
-            InputVarTemplate.SelectedIndex = 0;
-            InputVarKey.Text = "";
-            InputVarValue.Text = "";
-        }
-
-        private void BtnEditVariable_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is VariableItem item)
-            {
-                _currentMode = ModalMode.EditVariable;
-                _currentItem = item;
-                OpenModal("Kelola Variabel", "🏷️");
-                FormVariable.Visibility = Visibility.Visible;
-
-                InputVarTemplate.SelectedItem = item.Template;
-                InputVarKey.Text = item.Key;
-                InputVarValue.Text = item.DefaultValue;
-            }
-        }
-
-        private void BtnDeleteVariable_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Hapus variabel?", "Konfirmasi");
-        }
-
-        private void BtnAddTemplate_Click(object sender, RoutedEventArgs e)
-        {
-            _currentMode = ModalMode.NewTemplate;
-            OpenModal("Kelola Templat", "📝");
-            FormTemplate.Visibility = Visibility.Visible;
-
-            InputTemplateTitle.Text = "";
-            InputTemplateContent.Text = "";
-        }
-
-        private void BtnEditPreviewContent_Click(object sender, RoutedEventArgs e)
-        {
-            _currentMode = ModalMode.EditTemplate;
-            OpenModal("Kelola Templat", "📝");
-            FormTemplate.Visibility = Visibility.Visible;
-
-            InputTemplateTitle.Text = "SIMPLE_1";
-            InputTemplateContent.Text = TxtPreviewContent.Text;
-        }
-
-        private void BtnLogout_Click(object sender, RoutedEventArgs e)
-        {
-            MyAPP.Services.AuthState.ClearToken();
-
-            Window? window = Window.GetWindow(this);
+            Win.Window? window = Win.Window.GetWindow(this);
             if (window is MyAPP.MainWindow mainWindow)
             {
                 mainWindow.ShowLogin();
             }
         }
+
+        private async void BtnExport_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            try
+            {
+                Microsoft.Win32.SaveFileDialog dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "JSON files (*.json)|*.json",
+                    FileName = Sys.String.Concat("backup-presets-", Sys.DateTime.Now.ToString("yyyy-MM-dd"), ".json")
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    await this._dataService.ExportPresetsToJsonAsync(dialog.FileName).ConfigureAwait(true);
+                    Msg.Show("Data berhasil diekspor!", "Sukses", MsgButton.OK, MsgImage.Information);
+                }
+            }
+            catch (Sys.Exception ex)
+            {
+                Msg.Show(Sys.String.Concat("Gagal ekspor: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+            }
+        }
+
+        private async void BtnImport_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            try
+            {
+                Microsoft.Win32.OpenFileDialog dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "JSON files (*.json)|*.json"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    MsgBoxResult confirm = Msg.Show("Impor data akan menambahkan preset baru. Lanjutkan?", "Konfirmasi", MsgButton.YesNo, MsgImage.Question);
+
+                    if (confirm == MsgBoxResult.Yes)
+                    {
+                        await this._dataService.ImportPresetsFromJsonAsync(dialog.FileName).ConfigureAwait(true);
+                        await this.LoadPresetsAsync();
+                        Msg.Show("Data berhasil diimpor!", "Sukses", MsgButton.OK, MsgImage.Information);
+                    }
+                }
+            }
+            catch (Sys.Exception ex)
+            {
+                Msg.Show(Sys.String.Concat("Gagal impor: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Modal Management
+
+        private void OpenModal(Sys.String title, Sys.String icon = "📝")
+        {
+            this.ModalTitle.Text = title;
+            this.ModalIcon.Text = icon;
+            this.ModalOverlay.Visibility = Win.Visibility.Visible;
+
+            this.FormPreset.Visibility = Win.Visibility.Collapsed;
+            this.FormVariable.Visibility = Win.Visibility.Collapsed;
+            this.FormTemplate.Visibility = Win.Visibility.Collapsed;
+        }
+
+        private void BtnCloseModal_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            this.ModalOverlay.Visibility = Win.Visibility.Collapsed;
+            this._currentMode = ModalMode.None;
+            this._editingVariable = null;
+        }
+
+        private async void BtnSaveModal_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            try
+            {
+                switch (this._currentMode)
+                {
+                    case ModalMode.NewPreset:
+                        await this.HandleSaveNewPresetAsync();
+                        break;
+                    case ModalMode.EditPreset:
+                        await this.HandleUpdatePresetAsync();
+                        break;
+                    case ModalMode.NewTemplate:
+                        await this.HandleSaveNewTemplateAsync();
+                        break;
+                    case ModalMode.EditTemplate:
+                        await this.HandleUpdateTemplateAsync();
+                        break;
+                    case ModalMode.NewVariable:
+                        await this.HandleSaveNewVariableAsync();
+                        break;
+                    case ModalMode.EditVariable:
+                        await this.HandleUpdateVariableAsync();
+                        break;
+                }
+
+                this.BtnCloseModal_Click(sender, e);
+            }
+            catch (Sys.Exception ex)
+            {
+                Sys.Console.WriteLine(Sys.String.Concat("SaveModal Error: ", ex));
+                Msg.Show(Sys.String.Concat("Gagal menyimpan: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Preset CRUD
+
+        private void BtnNewPreset_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            this._currentMode = ModalMode.NewPreset;
+            this.OpenModal("Buat Preset Baru", "📁");
+            this.FormPreset.Visibility = Win.Visibility.Visible;
+            this.InputPresetName.Text = "";
+        }
+
+        private void BtnEditPreset_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (sender is Controls.Button btn && btn.Tag is Models.Preset preset)
+            {
+                this._currentMode = ModalMode.EditPreset;
+                this._selectedPreset = preset;
+                this.OpenModal("Edit Preset", "📁");
+                this.FormPreset.Visibility = Win.Visibility.Visible;
+                this.InputPresetName.Text = preset.Name;
+            }
+        }
+
+        private async void BtnDeletePreset_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (sender is Controls.Button btn && btn.Tag is Models.Preset preset)
+            {
+                // PERUBAHAN: Konfirmasi dihapus, langsung proses hapus
+                try
+                {
+                    await this._dataService.DeletePresetAsync(preset.Id).ConfigureAwait(true);
+
+                    if (this._selectedPreset?.Id == preset.Id)
+                    {
+                        this._selectedPreset = null;
+                        this._selectedTemplate = null;
+                    }
+
+                    await this.LoadPresetsAsync();
+                }
+                catch (Sys.Exception ex)
+                {
+                    Msg.Show(Sys.String.Concat("Gagal menghapus: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                }
+            }
+        }
+
+        private async Tasks.Task HandleSaveNewPresetAsync()
+        {
+            Sys.String name = this.InputPresetName.Text;
+            if (Sys.String.IsNullOrWhiteSpace(name))
+            {
+                throw new Sys.InvalidOperationException("Nama preset tidak boleh kosong.");
+            }
+
+            await this._dataService.CreatePresetAsync(name).ConfigureAwait(true);
+            await this.LoadPresetsAsync();
+        }
+
+        private async Tasks.Task HandleUpdatePresetAsync()
+        {
+            if (this._selectedPreset == null)
+            {
+                return;
+            }
+
+            Sys.String name = this.InputPresetName.Text;
+            if (Sys.String.IsNullOrWhiteSpace(name))
+            {
+                throw new Sys.InvalidOperationException("Nama preset tidak boleh kosong.");
+            }
+
+            this._selectedPreset.Name = name;
+            await this._dataService.UpdatePresetAsync(this._selectedPreset).ConfigureAwait(true);
+            await this.LoadPresetsAsync();
+        }
+
+        #endregion
+
+        #region Template CRUD
+
+        private void BtnAddTemplate_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (this._selectedPreset == null)
+            {
+                Msg.Show("Pilih preset terlebih dahulu.", "Perhatian");
+                return;
+            }
+
+            this._currentMode = ModalMode.NewTemplate;
+            this.OpenModal("Tambah Templat Baru", "📝");
+            this.FormTemplate.Visibility = Win.Visibility.Visible;
+            this.InputTemplateTitle.Text = "";
+            this.InputTemplateContent.Text = "";
+        }
+
+        private async Tasks.Task HandleSaveNewTemplateAsync()
+        {
+            if (this._selectedPreset == null)
+            {
+                return;
+            }
+
+            Sys.String title = this.InputTemplateTitle.Text;
+            Sys.String content = this.InputTemplateContent.Text;
+
+            if (Sys.String.IsNullOrWhiteSpace(title))
+            {
+                throw new Sys.InvalidOperationException("Judul templat tidak boleh kosong.");
+            }
+
+            Models.Template created = await this._dataService.CreateTemplateAsync(
+                this._selectedPreset.Id,
+                title,
+                content).ConfigureAwait(true);
+
+            await this.LoadPresetsAsync();
+
+            this._selectedTemplate = created;
+            this.SelectTemplate(created);
+        }
+
+        private async Tasks.Task HandleUpdateTemplateAsync()
+        {
+            if (this._selectedTemplate == null)
+            {
+                return;
+            }
+
+            Sys.String title = this.InputTemplateTitle.Text;
+            Sys.String content = this.InputTemplateContent.Text;
+
+            if (Sys.String.IsNullOrWhiteSpace(title))
+            {
+                throw new Sys.InvalidOperationException("Judul tidak boleh kosong.");
+            }
+
+            this._selectedTemplate.Title = title;
+            this._selectedTemplate.Content = content;
+
+            await this._dataService.UpdateTemplateAsync(this._selectedTemplate).ConfigureAwait(true);
+
+            await this.LoadPresetsAsync();
+            this.UpdatePreviewContent(content);
+        }
+
+        private async void BtnDeleteTemplate_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (this._selectedTemplate == null)
+            {
+                Msg.Show("Tidak ada templat yang dipilih.", "Perhatian");
+                return;
+            }
+
+            // PERUBAHAN: Konfirmasi dihapus, langsung proses hapus
+            try
+            {
+                await this._dataService.DeleteTemplateAsync(this._selectedTemplate.Id).ConfigureAwait(true);
+                this._selectedTemplate = null;
+                await this.LoadPresetsAsync();
+            }
+            catch (Sys.Exception ex)
+            {
+                Msg.Show(Sys.String.Concat("Gagal menghapus templat: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+            }
+        }
+
+        private void BtnEditPreviewContent_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (this._selectedTemplate == null)
+            {
+                Msg.Show("Tidak ada templat yang dipilih untuk diedit.", "Perhatian");
+                return;
+            }
+
+            this._currentMode = ModalMode.EditTemplate;
+            this.OpenModal("Edit Konten Templat", "📝");
+            this.FormTemplate.Visibility = Win.Visibility.Visible;
+            this.InputTemplateTitle.Text = this._selectedTemplate.Title;
+            this.InputTemplateContent.Text = this._selectedTemplate.Content;
+        }
+
+        private void UpdatePreviewContent(Sys.String content)
+        {
+            this.TxtPreviewContent.Text = content;
+        }
+
+        #endregion
+
+        #region Variable CRUD
+
+        private void BtnAddVariable_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (this._selectedPreset == null || this._selectedTemplate == null)
+            {
+                Msg.Show("Pilih templat terlebih dahulu sebelum menambah variabel.", "Perhatian");
+                return;
+            }
+
+            this._currentMode = ModalMode.NewVariable;
+            this.OpenModal("Tambah Variabel", "🏷️");
+            this.FormVariable.Visibility = Win.Visibility.Visible;
+
+            this.InputVarTemplate.ItemsSource = this._selectedPreset.Templates;
+            this.InputVarTemplate.SelectedValue = this._selectedTemplate.Id;
+            this.InputVarTemplate.IsEnabled = true;
+
+            this.InputVarKey.Text = "";
+            this.InputVarValue.Text = "";
+        }
+
+        private void BtnEditVariable_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (sender is Controls.Button btn && btn.Tag is VariableViewModel variableVm)
+            {
+                Models.Variable? model = this._selectedTemplate?.Variables?.FirstOrDefault(v => v.Id == variableVm.Id);
+                if (model != null)
+                {
+                    this._currentMode = ModalMode.EditVariable;
+                    this._editingVariable = model;
+                    this.OpenModal("Edit Variabel", "🏷️");
+                    this.FormVariable.Visibility = Win.Visibility.Visible;
+
+                    this.InputVarTemplate.ItemsSource = this._selectedPreset?.Templates;
+                    this.InputVarTemplate.SelectedValue = model.TemplateId;
+                    this.InputVarTemplate.IsEnabled = false;
+
+                    this.InputVarKey.Text = model.Name;
+                    this.InputVarValue.Text = model.Value ?? "";
+                }
+            }
+        }
+
+        private async void BtnDeleteVariable_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (sender is Controls.Button btn && btn.Tag is VariableViewModel variableVm)
+            {
+                // PERUBAHAN: Konfirmasi dihapus, langsung proses hapus
+                try
+                {
+                    await this._dataService.DeleteVariableAsync(variableVm.Id).ConfigureAwait(true);
+                    await this.LoadPresetsAsync();
+
+                    if (this._selectedTemplate != null)
+                    {
+                        this.SelectTemplate(this._selectedTemplate);
+                    }
+                }
+                catch (Sys.Exception ex)
+                {
+                    Msg.Show(Sys.String.Concat("Gagal menghapus: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                }
+            }
+        }
+
+        private async Tasks.Task HandleSaveNewVariableAsync()
+        {
+            if (this.InputVarTemplate.SelectedValue is not Sys.Guid templateId)
+            {
+                throw new Sys.InvalidOperationException("Pilih templat terlebih dahulu.");
+            }
+
+            Sys.String name = this.InputVarKey.Text;
+            Sys.String? value = this.InputVarValue.Text;
+
+            if (Sys.String.IsNullOrWhiteSpace(name))
+            {
+                throw new Sys.InvalidOperationException("Nama variabel tidak boleh kosong.");
+            }
+
+            await this._dataService.CreateVariableAsync(templateId, name, value).ConfigureAwait(true);
+            await this.LoadPresetsAsync();
+
+            Models.Template? template = this._selectedPreset?.Templates?.FirstOrDefault(t => t.Id == templateId);
+            if (template != null)
+            {
+                this.SelectTemplate(template);
+            }
+        }
+
+        private async Tasks.Task HandleUpdateVariableAsync()
+        {
+            if (this._editingVariable == null)
+            {
+                return;
+            }
+
+            Sys.String name = this.InputVarKey.Text;
+            Sys.String? value = this.InputVarValue.Text;
+
+            if (Sys.String.IsNullOrWhiteSpace(name))
+            {
+                throw new Sys.InvalidOperationException("Nama variabel tidak boleh kosong.");
+            }
+
+            this._editingVariable.Name = name;
+            this._editingVariable.Value = value;
+
+            await this._dataService.UpdateVariableAsync(this._editingVariable).ConfigureAwait(true);
+
+            await this.LoadPresetsAsync();
+            if (this._selectedTemplate != null)
+            {
+                this.SelectTemplate(this._selectedTemplate);
+            }
+        }
+
+        private async void VariableValue_LostFocus(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (sender is Controls.TextBox textBox && textBox.Tag is VariableViewModel variableVm)
+            {
+                if (variableVm.CurrentValue != variableVm.OriginalValue)
+                {
+                    try
+                    {
+                        Models.Variable updateModel = variableVm.ToModel();
+                        await this._dataService.UpdateVariableAsync(updateModel).ConfigureAwait(true);
+                        variableVm.OriginalValue = variableVm.CurrentValue;
+                    }
+                    catch (Sys.Exception ex)
+                    {
+                        Msg.Show(Sys.String.Concat("Gagal auto-save variabel: ", ex.Message), "Error", MsgButton.OK, MsgImage.Warning);
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Preview & Processing
+
+        private void BtnCheckPreview_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (this._selectedTemplate == null)
+            {
+                return;
+            }
+
+            Sys.String processed = this.GenerateProcessedContent(this._selectedTemplate);
+            this.TxtProcessedPreview.Text = processed;
+            this.TxtProcessedPreview.Visibility = Win.Visibility.Visible;
+        }
+
+        private async void BtnCopyResult_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        {
+            if (this._selectedTemplate == null)
+            {
+                return;
+            }
+
+            Sys.String processed = this.GenerateProcessedContent(this._selectedTemplate);
+
+            try
+            {
+                await TextCopy.ClipboardService.SetTextAsync(processed);
+
+                Controls.Button btn = (Controls.Button)sender;
+                Sys.String originalText = this.GetButtonText(btn);
+                this.SetButtonText(btn, "✓ Tersalin!");
+                btn.IsEnabled = false;
+
+                await Tasks.Task.Delay(1500);
+
+                this.SetButtonText(btn, originalText);
+                btn.IsEnabled = true;
+            }
+            catch (Sys.Exception ex)
+            {
+                Sys.Console.WriteLine(Sys.String.Concat("Copy Error: ", ex));
+                Msg.Show(Sys.String.Concat("Gagal menyalin: ", ex.Message), "Error");
+            }
+        }
+
+        private Sys.String GetButtonText(Controls.Button btn)
+        {
+            if (btn.Content is Sys.String text)
+            {
+                return text;
+            }
+
+            if (btn.Content is Controls.StackPanel sp)
+            {
+                foreach (var child in sp.Children)
+                {
+                    if (child is Controls.TextBlock tb)
+                    {
+                        return tb.Text;
+                    }
+                }
+            }
+
+            return "Salin Hasil";
+        }
+
+        private void SetButtonText(Controls.Button btn, Sys.String text)
+        {
+            if (btn.Content is Sys.String)
+            {
+                btn.Content = text;
+            }
+            else if (btn.Content is Controls.StackPanel sp)
+            {
+                foreach (var child in sp.Children)
+                {
+                    if (child is Controls.TextBlock tb)
+                    {
+                        tb.Text = text;
+                        return;
+                    }
+                }
+            }
+        }
+
+        private Sys.String GenerateProcessedContent(Models.Template template)
+        {
+            Sys.String content = template.Content ?? "";
+            Coll.List<VariableViewModel>? variables = this.ItemsVariables.ItemsSource as Coll.List<VariableViewModel>;
+
+            if (variables == null)
+            {
+                return content;
+            }
+
+            foreach (VariableViewModel variable in variables)
+            {
+                Sys.String safeName = variable.Name.Replace(@"\", @"\\").Replace("[", @"\[").Replace("]", @"\]");
+                Sys.String pattern = Sys.String.Concat(@"\{\{\s*", safeName, @"\s*\}\}");
+                Sys.String finalValue = variable.CurrentValue ?? "";
+
+                content = Sys.Text.RegularExpressions.Regex.Replace(
+                    content,
+                    pattern,
+                    finalValue,
+                    Sys.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
+
+            return content;
+        }
+
+        #endregion
     }
 }

@@ -18,6 +18,7 @@ namespace MyAPP.Services
         {
             public Sys.Boolean IsSuccess { get; set; }
             public Sys.String? AccessToken { get; set; }
+            public Sys.Guid? UserId { get; set; } 
             public Sys.String? ErrorMessage { get; set; }
         }
 
@@ -115,18 +116,32 @@ namespace MyAPP.Services
             {
                 using var doc = Json.JsonDocument.Parse(responseString);
 
+                Sys.String? accessToken = null;
                 if (doc.RootElement.TryGetProperty("access_token", out Json.JsonElement tokenElement))
                 {
-                    Sys.String? accessToken = tokenElement.GetString();
-                    if (Sys.String.IsNullOrWhiteSpace(accessToken) == false)
+                    accessToken = tokenElement.GetString();
+                }
+
+                Sys.Guid? userId = null;
+                if (doc.RootElement.TryGetProperty("user", out Json.JsonElement userElement))
+                {
+                    if (userElement.TryGetProperty("id", out Json.JsonElement idElement))
                     {
-                        return new AuthResult() { IsSuccess = true, AccessToken = accessToken };
+                        if (Sys.Guid.TryParse(idElement.GetString(), out Sys.Guid parsedId))
+                        {
+                            userId = parsedId;
+                        }
                     }
+                }
+
+                if (Sys.String.IsNullOrWhiteSpace(accessToken) == false)
+                {
+                    return new AuthResult() { IsSuccess = true, AccessToken = accessToken, UserId = userId };
                 }
             }
             catch
             {
-                return new AuthResult() { IsSuccess = false, ErrorMessage = "Failed to parse access token." };
+                return new AuthResult() { IsSuccess = false, ErrorMessage = "Failed to parse auth response." };
             }
 
             return new AuthResult() { IsSuccess = false, ErrorMessage = "No access token found in response." };

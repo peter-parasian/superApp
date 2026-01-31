@@ -46,6 +46,7 @@ namespace MyAPP.ViewModels
                 if (result.IsSuccess)
                 {
                     MyAPP.Services.AuthState.SetToken(result.AccessToken);
+                    MyAPP.Services.AuthState.SetUser(result.UserId);
                     return (true, result.AccessToken, null);
                 }
 
