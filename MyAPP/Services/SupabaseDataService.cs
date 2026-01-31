@@ -1,6 +1,7 @@
 ﻿using Sys = System;
 using Net = System.Net.Http;
 using Json = System.Text.Json;
+using JSer = System.Text.Json.Serialization; 
 using Tasks = System.Threading.Tasks;
 using Coll = System.Collections.Generic;
 using Models = MyAPP.Models;
@@ -21,6 +22,32 @@ namespace MyAPP.Services
         {
             PropertyNameCaseInsensitive = true
         };
+
+        private class ExportPresetDto
+        {
+            [JSer.JsonPropertyName("id")] public Sys.Guid Id { get; set; }
+            [JSer.JsonPropertyName("name")] public Sys.String Name { get; set; } = Sys.String.Empty;
+            [JSer.JsonPropertyName("templates")] public Coll.List<ExportTemplateDto> Templates { get; set; } = new Coll.List<ExportTemplateDto>();
+        }
+
+        private class ExportTemplateDto
+        {
+            [JSer.JsonPropertyName("id")] public Sys.Guid Id { get; set; }
+            [JSer.JsonPropertyName("title")] public Sys.String Title { get; set; } = Sys.String.Empty;
+            [JSer.JsonPropertyName("content")] public Sys.String Content { get; set; } = Sys.String.Empty;
+            [JSer.JsonPropertyName("preset_id")] public Sys.Guid PresetId { get; set; }
+            [JSer.JsonPropertyName("variables")] public Coll.List<ExportVariableDto> Variables { get; set; } = new Coll.List<ExportVariableDto>();
+            [JSer.JsonPropertyName("created_at")] public Sys.DateTime CreatedAt { get; set; }
+        }
+
+        private class ExportVariableDto
+        {
+            [JSer.JsonPropertyName("id")] public Sys.Guid Id { get; set; }
+            [JSer.JsonPropertyName("name")] public Sys.String Name { get; set; } = Sys.String.Empty;
+            [JSer.JsonPropertyName("value")] public Sys.String? Value { get; set; }
+            [JSer.JsonPropertyName("created_at")] public Sys.DateTime CreatedAt { get; set; }
+            [JSer.JsonPropertyName("template_id")] public Sys.Guid TemplateId { get; set; }
+        }
 
         private void AddAuthHeaders(Http.HttpRequestMessage request)
         {
@@ -87,7 +114,7 @@ namespace MyAPP.Services
             }
 
             Sys.String? token = AuthState.GetToken();
-            Sys.Guid? userId = AuthState.GetUser(); 
+            Sys.Guid? userId = AuthState.GetUser();
 
             if (Sys.String.IsNullOrWhiteSpace(token))
             {
@@ -105,7 +132,6 @@ namespace MyAPP.Services
             this.AddAuthHeaders(request);
             request.Headers.TryAddWithoutValidation("Prefer", "return=representation");
 
-            // PERBAIKAN UTAMA: Mengirimkan user_id dalam payload JSON
             var payload = new
             {
                 name = name.Trim(),
@@ -396,17 +422,35 @@ namespace MyAPP.Services
         {
             Coll.List<Models.Preset> presets = await this.GetPresetsWithDetailsAsync().ConfigureAwait(false);
 
+            var exportData = presets.Select(p => new ExportPresetDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Templates = p.Templates?.Select(t => new ExportTemplateDto
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Content = t.Content,
+                    PresetId = t.PresetId, 
+                    CreatedAt = t.CreatedAt, 
+                    Variables = t.Variables?.Select(v => new ExportVariableDto
+                    {
+                        Id = v.Id,
+                        Name = v.Name,
+                        Value = v.Value,
+                        CreatedAt = v.CreatedAt,
+                        TemplateId = v.TemplateId 
+                    }).ToList() ?? new Coll.List<ExportVariableDto>()
+                }).ToList() ?? new Coll.List<ExportTemplateDto>()
+            });
+
             var options = new Json.JsonSerializerOptions
             {
                 WriteIndented = true
             };
 
-            Sys.String json = Json.JsonSerializer.Serialize(presets, options);
-
             using var stream = new IO.FileStream(filePath, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.None);
-            using var writer = new IO.StreamWriter(stream, Sys.Text.Encoding.UTF8);
-
-            await writer.WriteAsync(json).ConfigureAwait(false);
+            await Json.JsonSerializer.SerializeAsync(stream, exportData, options).ConfigureAwait(false);
         }
 
         public async Tasks.Task ImportPresetsFromJsonAsync(Sys.String filePath)

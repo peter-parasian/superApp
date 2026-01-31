@@ -15,6 +15,8 @@ using Json = System.Text.Json;
 using Windows = System.Windows;
 using Media = System.Windows.Media;
 using TextCopy;
+using Comp = System.ComponentModel;
+using MahApps.Metro.IconPacks;
 
 namespace MyAPP.Views
 {
@@ -32,13 +34,34 @@ namespace MyAPP.Views
         private Coll.List<Models.Template> _currentTemplates = new Coll.List<Models.Template>();
         private Coll.List<Models.Variable> _currentVariables = new Coll.List<Models.Variable>();
 
-        public class VariableViewModel
+        public class VariableViewModel : Comp.INotifyPropertyChanged
         {
+            private Sys.String _currentValue = Sys.String.Empty;
+
             public Sys.Guid Id { get; set; }
             public Sys.Guid TemplateId { get; set; }
             public Sys.String Name { get; set; } = string.Empty;
             public Sys.String? OriginalValue { get; set; }
-            public Sys.String CurrentValue { get; set; } = string.Empty;
+
+            public Sys.String CurrentValue
+            {
+                get => _currentValue;
+                set
+                {
+                    if (_currentValue != value)
+                    {
+                        _currentValue = value;
+                        OnPropertyChanged(nameof(CurrentValue));
+                    }
+                }
+            }
+
+            public event Comp.PropertyChangedEventHandler? PropertyChanged;
+
+            private void OnPropertyChanged(Sys.String propertyName)
+            {
+                PropertyChanged?.Invoke(this, new Comp.PropertyChangedEventArgs(propertyName));
+            }
 
             public Models.Variable ToModel()
             {
@@ -58,6 +81,33 @@ namespace MyAPP.Views
             this._dataService = new Services.SupabaseDataService();
             this.Loaded += async (s, e) => await this.LoadPresetsAsync();
         }
+
+        #region Toast Notification Helper
+
+        private async void ShowToast(Sys.String message, Sys.Boolean isError = false)
+        {
+            this.ToastText.Text = message;
+
+            if (isError)
+            {
+                this.ToastIcon.Kind = PackIconMaterialKind.AlertCircle;
+                this.ToastIcon.Foreground = Media.Brushes.Red;
+            }
+            else
+            {
+                this.ToastIcon.Kind = PackIconMaterialKind.CheckCircle;
+                this.ToastIcon.Foreground = Media.Brushes.LightGreen;
+            }
+
+            this.ToastNotification.Visibility = Win.Visibility.Visible;
+            this.ToastNotification.Opacity = 1;
+
+            await Tasks.Task.Delay(1500);
+
+            this.ToastNotification.Visibility = Win.Visibility.Collapsed;
+        }
+
+        #endregion
 
         #region Data Loading
 
@@ -106,7 +156,7 @@ namespace MyAPP.Views
             catch (Sys.Exception ex)
             {
                 Sys.Console.WriteLine(Sys.String.Concat("LoadPresets Error: ", ex));
-                Msg.Show(Sys.String.Concat("Gagal memuat preset: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                this.ShowToast("Gagal memuat data", true);
             }
         }
 
@@ -173,7 +223,7 @@ namespace MyAPP.Views
                         TemplateId = variable.TemplateId,
                         Name = variable.Name,
                         OriginalValue = variable.Value,
-                        CurrentValue = variable.Value ?? string.Empty
+                        CurrentValue = Sys.String.Empty
                     });
                 }
             }
@@ -242,12 +292,12 @@ namespace MyAPP.Views
                 if (dialog.ShowDialog() == true)
                 {
                     await this._dataService.ExportPresetsToJsonAsync(dialog.FileName).ConfigureAwait(true);
-                    Msg.Show("Data berhasil diekspor!", "Sukses", MsgButton.OK, MsgImage.Information);
+                    this.ShowToast("Ekspor berhasil");
                 }
             }
             catch (Sys.Exception ex)
             {
-                Msg.Show(Sys.String.Concat("Gagal ekspor: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                this.ShowToast(Sys.String.Concat("Gagal ekspor: ", ex.Message), true);
             }
         }
 
@@ -262,19 +312,14 @@ namespace MyAPP.Views
 
                 if (dialog.ShowDialog() == true)
                 {
-                    MsgBoxResult confirm = Msg.Show("Impor data akan menambahkan preset baru. Lanjutkan?", "Konfirmasi", MsgButton.YesNo, MsgImage.Question);
-
-                    if (confirm == MsgBoxResult.Yes)
-                    {
-                        await this._dataService.ImportPresetsFromJsonAsync(dialog.FileName).ConfigureAwait(true);
-                        await this.LoadPresetsAsync();
-                        Msg.Show("Data berhasil diimpor!", "Sukses", MsgButton.OK, MsgImage.Information);
-                    }
+                    await this._dataService.ImportPresetsFromJsonAsync(dialog.FileName).ConfigureAwait(true);
+                    await this.LoadPresetsAsync();
+                    this.ShowToast("Impor berhasil");
                 }
             }
             catch (Sys.Exception ex)
             {
-                Msg.Show(Sys.String.Concat("Gagal impor: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                this.ShowToast(Sys.String.Concat("Gagal impor: ", ex.Message), true);
             }
         }
 
@@ -327,11 +372,12 @@ namespace MyAPP.Views
                 }
 
                 this.BtnCloseModal_Click(sender, e);
+                this.ShowToast("Disimpan"); 
             }
             catch (Sys.Exception ex)
             {
                 Sys.Console.WriteLine(Sys.String.Concat("SaveModal Error: ", ex));
-                Msg.Show(Sys.String.Concat("Gagal menyimpan: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                this.ShowToast(ex.Message, true);
             }
         }
 
@@ -363,7 +409,6 @@ namespace MyAPP.Views
         {
             if (sender is Controls.Button btn && btn.Tag is Models.Preset preset)
             {
-                // PERUBAHAN: Konfirmasi dihapus, langsung proses hapus
                 try
                 {
                     await this._dataService.DeletePresetAsync(preset.Id).ConfigureAwait(true);
@@ -375,10 +420,11 @@ namespace MyAPP.Views
                     }
 
                     await this.LoadPresetsAsync();
+                    this.ShowToast("Preset dihapus");
                 }
                 catch (Sys.Exception ex)
                 {
-                    Msg.Show(Sys.String.Concat("Gagal menghapus: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                    this.ShowToast(Sys.String.Concat("Gagal menghapus: ", ex.Message), true);
                 }
             }
         }
@@ -421,7 +467,7 @@ namespace MyAPP.Views
         {
             if (this._selectedPreset == null)
             {
-                Msg.Show("Pilih preset terlebih dahulu.", "Perhatian");
+                this.ShowToast("Pilih preset dahulu", true);
                 return;
             }
 
@@ -486,20 +532,20 @@ namespace MyAPP.Views
         {
             if (this._selectedTemplate == null)
             {
-                Msg.Show("Tidak ada templat yang dipilih.", "Perhatian");
+                this.ShowToast("Pilih templat dahulu", true);
                 return;
             }
 
-            // PERUBAHAN: Konfirmasi dihapus, langsung proses hapus
             try
             {
                 await this._dataService.DeleteTemplateAsync(this._selectedTemplate.Id).ConfigureAwait(true);
                 this._selectedTemplate = null;
                 await this.LoadPresetsAsync();
+                this.ShowToast("Templat dihapus");
             }
             catch (Sys.Exception ex)
             {
-                Msg.Show(Sys.String.Concat("Gagal menghapus templat: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                this.ShowToast(Sys.String.Concat("Gagal menghapus: ", ex.Message), true);
             }
         }
 
@@ -507,7 +553,7 @@ namespace MyAPP.Views
         {
             if (this._selectedTemplate == null)
             {
-                Msg.Show("Tidak ada templat yang dipilih untuk diedit.", "Perhatian");
+                this.ShowToast("Pilih templat dahulu", true);
                 return;
             }
 
@@ -531,7 +577,7 @@ namespace MyAPP.Views
         {
             if (this._selectedPreset == null || this._selectedTemplate == null)
             {
-                Msg.Show("Pilih templat terlebih dahulu sebelum menambah variabel.", "Perhatian");
+                this.ShowToast("Pilih templat dahulu", true);
                 return;
             }
 
@@ -573,7 +619,6 @@ namespace MyAPP.Views
         {
             if (sender is Controls.Button btn && btn.Tag is VariableViewModel variableVm)
             {
-                // PERUBAHAN: Konfirmasi dihapus, langsung proses hapus
                 try
                 {
                     await this._dataService.DeleteVariableAsync(variableVm.Id).ConfigureAwait(true);
@@ -583,10 +628,11 @@ namespace MyAPP.Views
                     {
                         this.SelectTemplate(this._selectedTemplate);
                     }
+                    this.ShowToast("Variabel dihapus");
                 }
                 catch (Sys.Exception ex)
                 {
-                    Msg.Show(Sys.String.Concat("Gagal menghapus: ", ex.Message), "Error", MsgButton.OK, MsgImage.Error);
+                    this.ShowToast(Sys.String.Concat("Gagal menghapus: ", ex.Message), true);
                 }
             }
         }
@@ -643,26 +689,6 @@ namespace MyAPP.Views
             }
         }
 
-        private async void VariableValue_LostFocus(Sys.Object sender, Win.RoutedEventArgs e)
-        {
-            if (sender is Controls.TextBox textBox && textBox.Tag is VariableViewModel variableVm)
-            {
-                if (variableVm.CurrentValue != variableVm.OriginalValue)
-                {
-                    try
-                    {
-                        Models.Variable updateModel = variableVm.ToModel();
-                        await this._dataService.UpdateVariableAsync(updateModel).ConfigureAwait(true);
-                        variableVm.OriginalValue = variableVm.CurrentValue;
-                    }
-                    catch (Sys.Exception ex)
-                    {
-                        Msg.Show(Sys.String.Concat("Gagal auto-save variabel: ", ex.Message), "Error", MsgButton.OK, MsgImage.Warning);
-                    }
-                }
-            }
-        }
-
         #endregion
 
         #region Preview & Processing
@@ -692,60 +718,20 @@ namespace MyAPP.Views
             {
                 await TextCopy.ClipboardService.SetTextAsync(processed);
 
-                Controls.Button btn = (Controls.Button)sender;
-                Sys.String originalText = this.GetButtonText(btn);
-                this.SetButtonText(btn, "✓ Tersalin!");
-                btn.IsEnabled = false;
+                if (this.ItemsVariables.ItemsSource is Coll.List<VariableViewModel> variables)
+                {
+                    foreach (var variable in variables)
+                    {
+                        variable.CurrentValue = Sys.String.Empty;
+                    }
+                }
 
-                await Tasks.Task.Delay(1500);
-
-                this.SetButtonText(btn, originalText);
-                btn.IsEnabled = true;
+                this.ShowToast("Tersalin & input bersih");
             }
             catch (Sys.Exception ex)
             {
                 Sys.Console.WriteLine(Sys.String.Concat("Copy Error: ", ex));
-                Msg.Show(Sys.String.Concat("Gagal menyalin: ", ex.Message), "Error");
-            }
-        }
-
-        private Sys.String GetButtonText(Controls.Button btn)
-        {
-            if (btn.Content is Sys.String text)
-            {
-                return text;
-            }
-
-            if (btn.Content is Controls.StackPanel sp)
-            {
-                foreach (var child in sp.Children)
-                {
-                    if (child is Controls.TextBlock tb)
-                    {
-                        return tb.Text;
-                    }
-                }
-            }
-
-            return "Salin Hasil";
-        }
-
-        private void SetButtonText(Controls.Button btn, Sys.String text)
-        {
-            if (btn.Content is Sys.String)
-            {
-                btn.Content = text;
-            }
-            else if (btn.Content is Controls.StackPanel sp)
-            {
-                foreach (var child in sp.Children)
-                {
-                    if (child is Controls.TextBlock tb)
-                    {
-                        tb.Text = text;
-                        return;
-                    }
-                }
+                this.ShowToast(Sys.String.Concat("Gagal menyalin: ", ex.Message), true);
             }
         }
 
@@ -763,12 +749,15 @@ namespace MyAPP.Views
             {
                 Sys.String safeName = variable.Name.Replace(@"\", @"\\").Replace("[", @"\[").Replace("]", @"\]");
                 Sys.String pattern = Sys.String.Concat(@"\{\{\s*", safeName, @"\s*\}\}");
-                Sys.String finalValue = variable.CurrentValue ?? "";
+
+                Sys.String valueToUse = Sys.String.IsNullOrWhiteSpace(variable.CurrentValue)
+                                        ? (variable.OriginalValue ?? "")
+                                        : variable.CurrentValue;
 
                 content = Sys.Text.RegularExpressions.Regex.Replace(
                     content,
                     pattern,
-                    finalValue,
+                    valueToUse,
                     Sys.Text.RegularExpressions.RegexOptions.IgnoreCase);
             }
 

@@ -225,7 +225,7 @@
                         <DockPanel Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock Text="VARIABEL INPUT" FontWeight="Bold" FontSize="14" Foreground="#111827"/>
-                                <TextBlock Text="Isi nilai di bawah ini untuk mengubah konten." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
+                                <TextBlock Text="Isi nilai di bawah ini untuk mengubah konten. Kosongkan untuk menggunakan nilai default." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
                             </StackPanel>
                             <Button Style="{StaticResource BtnWhite}" HorizontalAlignment="Right" Click="BtnAddVariable_Click">
                                 <StackPanel Orientation="Horizontal">
@@ -277,6 +277,8 @@
 
                                             <Border Grid.Row="1" Background="#f9fafb" CornerRadius="8" Padding="12" MinHeight="100" BorderBrush="#e5e7eb" BorderThickness="1">
                                                 <TextBox Text="{Binding CurrentValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                         mah:TextBoxHelper.Watermark="{Binding OriginalValue, StringFormat='Default: {0}'}"
+                                                         mah:TextBoxHelper.UseFloatingWatermark="True"
                                                          Background="Transparent" 
                                                          BorderThickness="0"
                                                          FontSize="14"
@@ -284,8 +286,7 @@
                                                          AcceptsReturn="True"
                                                          VerticalScrollBarVisibility="Auto"
                                                          Height="100"
-                                                         Tag="{Binding}"
-                                                         LostFocus="VariableValue_LostFocus"/>
+                                                         Tag="{Binding}"/>
                                             </Border>
                                         </Grid>
                                     </Border>
@@ -341,7 +342,7 @@
                                         <Button Style="{StaticResource BtnPrimary}" Margin="0,0,12,0" Click="BtnCopyResult_Click">
                                             <StackPanel Orientation="Horizontal">
                                                 <iconPacks:PackIconMaterial Kind="ContentCopy" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Salin Hasil" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Salin &amp; Bersihkan" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Button>
                                         <Button Style="{StaticResource BtnWhite}" Click="BtnCheckPreview_Click">
@@ -358,6 +359,24 @@
                 </ScrollViewer>
             </Grid>
         </Grid>
+
+        <Border x:Name="ToastNotification" 
+                VerticalAlignment="Bottom" HorizontalAlignment="Center" 
+                Margin="0,0,0,50" 
+                Background="#333333" 
+                CornerRadius="8" 
+                Padding="20,12" 
+                Visibility="Collapsed" 
+                Opacity="0"
+                Panel.ZIndex="2000">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3"/>
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconMaterial x:Name="ToastIcon" Kind="CheckCircle" Width="20" Height="20" Foreground="#4ade80" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="ToastText" Text="Operasi berhasil" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
 
         <Grid x:Name="ModalOverlay" Visibility="Collapsed" Panel.ZIndex="1000">
             <Border Background="Black" Opacity="0.5" MouseDown="BtnCloseModal_Click"/>
@@ -397,7 +416,7 @@
                             <TextBlock Text="Nama Variabel" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
                             <TextBox x:Name="InputVarKey" Style="{StaticResource ModernTextBox}" FontFamily="Consolas" Margin="0,0,0,16"/>
 
-                            <TextBlock Text="Nilai Default" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
+                            <TextBlock Text="Nilai Default (Akan muncul sebagai watermark)" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
                             <TextBox x:Name="InputVarValue" Style="{StaticResource ModernTextBox}" Height="100" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"/>
                         </StackPanel>
 
