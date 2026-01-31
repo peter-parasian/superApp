@@ -1,19 +1,21 @@
-﻿using Sys = System;
-using Win = System.Windows;
-using Controls = System.Windows.Controls;
-using Msg = System.Windows.MessageBox;
-using Tasks = System.Threading.Tasks;
-using Coll = System.Collections.Generic;
-using Models = MyAPP.Models;
-using Services = MyAPP.Services;
-using Linq = System.Linq;
-using IO = System.IO;
-using Media = System.Windows.Media;
+﻿using MahApps.Metro.IconPacks;
+using System.Reflection;
 using TextCopy;
+using Coll = System.Collections.Generic;
 using Comp = System.ComponentModel;
-using MahApps.Metro.IconPacks;
-using Obj = System.Collections.ObjectModel;
+using Controls = System.Windows.Controls;
 using Dialogs = Microsoft.Win32;
+using IO = System.IO;
+using Linq = System.Linq;
+using Media = System.Windows.Media;
+using Models = MyAPP.Models;
+using Msg = System.Windows.MessageBox;
+using Obj = System.Collections.ObjectModel;
+using Services = MyAPP.Services;
+using Sys = System;
+using Tasks = System.Threading.Tasks;
+using Threading = System.Threading;
+using Win = System.Windows;
 
 namespace MyAPP.Views
 {
@@ -30,6 +32,9 @@ namespace MyAPP.Views
         private Coll.List<Models.Preset> _currentPresets = new Coll.List<Models.Preset>();
 
         private static readonly long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit
+
+        // SSD-optimized buffer size: 128KB is the sweet spot for modern SSDs
+        private const Sys.Int32 FILE_BUFFER_SIZE = 131072;
 
         private readonly Sys.String _uploadDir = IO.Path.Combine(
             Sys.Environment.GetFolderPath(Sys.Environment.SpecialFolder.LocalApplicationData),
@@ -156,15 +161,27 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Data Loading (Supabase)
+        #region Data Loading (Supabase) - Optimized for 8GB RAM
 
+        /// <summary>
+        /// Loads presets asynchronously to prevent UI blocking.
+        /// Offloads deserialization to background thread to keep UI responsive on entry.
+        /// </summary>
         private async Tasks.Task LoadPresetsAsync()
         {
             try
             {
-                // Memory optimization: don't hold previous list while fetching new one
-                this._currentPresets = await this._dataService.GetPresetsWithDetailsAsync().ConfigureAwait(true);
+                // CRITICAL OPTIMIZATION: Run data fetching and deserialization on background thread
+                // to prevent UI freeze when entering dashboard. SSD is fast but JSON parsing is CPU-bound.
+                Coll.List<Models.Preset> presets = await Tasks.Task.Run(async () =>
+                {
+                    return await this._dataService.GetPresetsWithDetailsAsync().ConfigureAwait(false);
+                }).ConfigureAwait(true);
 
+                // Memory optimization: Replace reference immediately to allow GC of old list
+                this._currentPresets = presets;
+
+                // Calculate variable counts for display (UI thread work)
                 foreach (Models.Preset preset in this._currentPresets)
                 {
                     preset.UserId = Sys.Guid.Empty;
@@ -286,7 +303,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region File Manager Logic (Memory Optimized for 8GB RAM)
+        #region File Manager Logic (Memory Optimized for 8GB RAM + SSD)
 
         private void LoadFileManager()
         {
@@ -306,7 +323,7 @@ namespace MyAPP.Views
         {
             try
             {
-                // Use Enumerate (lazy loading) instead of Get (array allocation) to reduce memory footprint
+                // Enumerate (streaming) instead of Get (array allocation) to reduce memory footprint
                 foreach (Sys.String dir in IO.Directory.EnumerateDirectories(path).OrderBy(d => d))
                 {
                     FileSystemItem item = new FileSystemItem
@@ -379,7 +396,8 @@ namespace MyAPP.Views
         }
 
         /// <summary>
-        /// Async file upload with streaming to minimize memory usage (8GB RAM optimization).
+        /// Async file upload with optimized streaming for SSD (128KB buffer).
+        /// Prevents UI freeze by running I/O on background thread with ConfigureAwait(false).
         /// </summary>
         private async Tasks.Task UploadFilesAsync(Sys.String[] files)
         {
@@ -391,11 +409,26 @@ namespace MyAPP.Views
 
                 try
                 {
-                    // Stream-based copy with 80KB buffer (SSD optimized)
-                    using var sourceStream = new IO.FileStream(file, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.Read, 4096, true);
-                    using var destStream = new IO.FileStream(dest, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.None, 4096, true);
+                    // OPTIMIZATION: 128KB buffer optimized for SSD sequential writes
+                    // FileOptions.SequentialScan hints the OS to optimize for sequential read (good for SSD)
+                    // FileOptions.Asynchronous ensures true async I/O without blocking threads
+                    using var sourceStream = new IO.FileStream(
+                        file,
+                        IO.FileMode.Open,
+                        IO.FileAccess.Read,
+                        IO.FileShare.Read,
+                        FILE_BUFFER_SIZE,
+                        IO.FileOptions.SequentialScan | IO.FileOptions.Asynchronous);
 
-                    await sourceStream.CopyToAsync(destStream, 81920).ConfigureAwait(false);
+                    using var destStream = new IO.FileStream(
+                        dest,
+                        IO.FileMode.Create,
+                        IO.FileAccess.Write,
+                        IO.FileShare.None,
+                        FILE_BUFFER_SIZE,
+                        IO.FileOptions.Asynchronous);
+
+                    await sourceStream.CopyToAsync(destStream).ConfigureAwait(false);
                     successCount++;
                 }
                 catch (Sys.Exception ex)
@@ -404,7 +437,7 @@ namespace MyAPP.Views
                 }
             }
 
-            // Return to UI thread to update UI
+            // Return to UI thread for UI updates
             Win.Application.Current.Dispatcher.Invoke(() =>
             {
                 this.LoadFileManager();
@@ -425,7 +458,8 @@ namespace MyAPP.Views
                 Sys.String folderName = IO.Path.GetFileName(dialog.FolderName);
                 Sys.String destDir = IO.Path.Combine(_uploadDir, folderName);
 
-                await Tasks.Task.Run(() => CopyDirectoryAsync(dialog.FolderName, destDir)).ConfigureAwait(true);
+                // Run on background thread to prevent UI freeze during large folder copy
+                await Tasks.Task.Run(() => this.CopyDirectoryAsync(dialog.FolderName, destDir)).ConfigureAwait(true);
 
                 this.LoadFileManager();
                 this.ShowToast("Folder disalin ke storage");
@@ -433,9 +467,10 @@ namespace MyAPP.Views
         }
 
         /// <summary>
-        /// Async directory copy with streaming file operations.
+        /// Async directory copy with SSD-optimized streaming (128KB buffer).
+        /// Processes files sequentially to maintain low memory footprint on 8GB RAM systems.
         /// </summary>
-        private static async Tasks.Task CopyDirectoryAsync(Sys.String sourceDir, Sys.String destinationDir)
+        private async Tasks.Task CopyDirectoryAsync(Sys.String sourceDir, Sys.String destinationDir)
         {
             IO.DirectoryInfo dir = new IO.DirectoryInfo(sourceDir);
 
@@ -453,14 +488,27 @@ namespace MyAPP.Views
 
                 try
                 {
-                    using var sourceStream = new IO.FileStream(file.FullName, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.Read, 4096, true);
-                    using var destStream = new IO.FileStream(destPath, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.None, 4096, true);
+                    using var sourceStream = new IO.FileStream(
+                        file.FullName,
+                        IO.FileMode.Open,
+                        IO.FileAccess.Read,
+                        IO.FileShare.Read,
+                        FILE_BUFFER_SIZE,
+                        IO.FileOptions.SequentialScan | IO.FileOptions.Asynchronous);
 
-                    await sourceStream.CopyToAsync(destStream, 81920).ConfigureAwait(false);
+                    using var destStream = new IO.FileStream(
+                        destPath,
+                        IO.FileMode.Create,
+                        IO.FileAccess.Write,
+                        IO.FileShare.None,
+                        FILE_BUFFER_SIZE,
+                        IO.FileOptions.Asynchronous);
+
+                    await sourceStream.CopyToAsync(destStream).ConfigureAwait(false);
                 }
                 catch
                 {
-                    // Continue on error
+                    // Continue on error to ensure robustness
                 }
             }
 
@@ -468,24 +516,32 @@ namespace MyAPP.Views
             foreach (IO.DirectoryInfo subDir in dir.GetDirectories())
             {
                 Sys.String newDestDir = IO.Path.Combine(destinationDir, subDir.Name);
-                await CopyDirectoryAsync(subDir.FullName, newDestDir).ConfigureAwait(false);
+                await this.CopyDirectoryAsync(subDir.FullName, newDestDir).ConfigureAwait(false);
             }
         }
 
-        private void BtnDeleteFile_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        /// <summary>
+        /// Robust async file/folder deletion to prevent UI freeze.
+        /// </summary>
+        private async void BtnDeleteFile_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
             if (sender is Controls.Button btn && btn.Tag is FileSystemItem item)
             {
                 try
                 {
-                    if (item.IsFolder)
+                    // CRITICAL FIX: Run deletion on background thread to prevent UI freeze
+                    // File.Delete and Directory.Delete are synchronous I/O operations that can block on large folders
+                    await Tasks.Task.Run(() =>
                     {
-                        IO.Directory.Delete(item.FullPath, true);
-                    }
-                    else
-                    {
-                        IO.File.Delete(item.FullPath);
-                    }
+                        if (item.IsFolder)
+                        {
+                            IO.Directory.Delete(item.FullPath, true);
+                        }
+                        else
+                        {
+                            IO.File.Delete(item.FullPath);
+                        }
+                    }).ConfigureAwait(true);
 
                     this.LoadFileManager();
                     this.ShowToast("Item berhasil dihapus");
@@ -497,31 +553,38 @@ namespace MyAPP.Views
             }
         }
 
-        private void ClearUploadedData()
+        /// <summary>
+        /// Clears uploaded data asynchronously to prevent UI freeze.
+        /// Uses background thread for I/O operations.
+        /// </summary>
+        private async Tasks.Task ClearUploadedDataAsync()
         {
             if (!IO.Directory.Exists(_uploadDir))
             {
                 return;
             }
 
-            try
+            await Tasks.Task.Run(() =>
             {
-                IO.DirectoryInfo dir = new IO.DirectoryInfo(_uploadDir);
-
-                foreach (IO.FileInfo file in dir.GetFiles())
+                try
                 {
-                    file.Delete();
-                }
+                    IO.DirectoryInfo dir = new IO.DirectoryInfo(_uploadDir);
 
-                foreach (IO.DirectoryInfo subDir in dir.GetDirectories())
-                {
-                    subDir.Delete(true);
+                    foreach (IO.FileInfo file in dir.GetFiles())
+                    {
+                        try { file.Delete(); } catch { /* Ignore individual file errors */ }
+                    }
+
+                    foreach (IO.DirectoryInfo subDir in dir.GetDirectories())
+                    {
+                        try { subDir.Delete(true); } catch { /* Ignore individual folder errors */ }
+                    }
                 }
-            }
-            catch (Sys.Exception ex)
-            {
-                Sys.Console.WriteLine($"Gagal membersihkan folder upload: {ex.Message}");
-            }
+                catch (Sys.Exception ex)
+                {
+                    Sys.Console.WriteLine($"Gagal membersihkan folder upload: {ex.Message}");
+                }
+            }).ConfigureAwait(false);
         }
 
         #endregion
@@ -1037,7 +1100,7 @@ namespace MyAPP.Views
 
         #endregion
 
-        #region Preview Processing (Supporting both {{xxc}} and {{xcc}})
+        #region Preview Processing (Supporting both {{xxc}} and backtick file listing)
 
         private void BtnCheckPreview_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
@@ -1072,7 +1135,7 @@ namespace MyAPP.Views
                     }
                 }
 
-                this.ClearUploadedData();
+                await this.ClearUploadedDataAsync().ConfigureAwait(true);
                 this.LoadFileManager();
 
                 this.ShowToast("Tersalin, Variabel & File dibersihkan");
@@ -1106,19 +1169,14 @@ namespace MyAPP.Views
                 content = content.Replace("{{xxc}}", sb.ToString());
             }
 
-            // Handle {{xcc}} variable (file listing only)
-            if (content.Contains("{{xcc}}"))
+            // Handle {{file_list}} - placeholder untuk daftar file yang di-upload
+            if (content.Contains("{{file}}"))
             {
-                Sys.Text.StringBuilder sb = new Sys.Text.StringBuilder();
-                if (IO.Directory.Exists(_uploadDir))
-                {
-                    sb.AppendLine(this.ListUploadedFiles(_uploadDir));
-                }
-                else
-                {
-                    sb.AppendLine("Error: Directory not found.");
-                }
-                content = content.Replace("{{xcc}}", sb.ToString());
+                Sys.String fileList = IO.Directory.Exists(_uploadDir)
+                    ? this.ListUploadedFiles(_uploadDir)
+                    : "(tidak ada file)";
+
+                content = content.Replace("{{file}}", fileList);
             }
 
             Coll.List<VariableViewModel>? variables = this.ItemsVariables.ItemsSource as Coll.List<VariableViewModel>;
@@ -1155,22 +1213,22 @@ namespace MyAPP.Views
                 return "Direktori tidak ditemukan.";
             }
 
-            var directories = IO.Directory.EnumerateDirectories(dirPath).OrderBy(d => d).ToList();
-            var files = IO.Directory.EnumerateFiles(dirPath).OrderBy(f => f).ToList();
+            Coll.List<Sys.String> directories = IO.Directory.EnumerateDirectories(dirPath).OrderBy(d => d).ToList();
+            Coll.List<Sys.String> files = IO.Directory.EnumerateFiles(dirPath).OrderBy(f => f).ToList();
 
-            for (int i = 0; i < directories.Count; i++)
+            for (Sys.Int32 i = 0; i < directories.Count; i++)
             {
-                var d = directories[i];
-                bool isLast = (i == directories.Count - 1) && (files.Count == 0);
+                Sys.String d = directories[i];
+                Sys.Boolean isLast = (i == directories.Count - 1) && (files.Count == 0);
                 treeBuilder.Append($"{prefix}{(isLast ? "└──" : "├──")} {IO.Path.GetFileName(d)}/\n");
-                string newPrefix = prefix + (isLast ? "    " : "│   ");
+                Sys.String newPrefix = prefix + (isLast ? "    " : "│   ");
                 treeBuilder.Append(GenerateTree(d, newPrefix));
             }
 
-            for (int i = 0; i < files.Count; i++)
+            for (Sys.Int32 i = 0; i < files.Count; i++)
             {
-                var f = files[i];
-                bool isLast = (i == files.Count - 1);
+                Sys.String f = files[i];
+                Sys.Boolean isLast = (i == files.Count - 1);
                 treeBuilder.Append($"{prefix}{(isLast ? "└──" : "├──")} {IO.Path.GetFileName(f)}\n");
             }
 
@@ -1179,9 +1237,12 @@ namespace MyAPP.Views
 
         private Sys.String ListUploadedFiles(Sys.String rootDir)
         {
-            if (!IO.Directory.Exists(rootDir)) return "";
+            if (!IO.Directory.Exists(rootDir))
+            {
+                return "";
+            }
 
-            var filenames = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories)
+            Coll.IEnumerable<Sys.String> filenames = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories)
                                         .Select(IO.Path.GetFileName)
                                         .Where(name => name != null)
                                         .OrderBy(name => name);
@@ -1192,28 +1253,41 @@ namespace MyAPP.Views
         /// <summary>
         /// Memory-optimized code template generation using streaming reads.
         /// Respects 10MB file size limit per file to prevent OutOfMemoryException on 8GB RAM systems.
+        /// Uses SequentialScan for SSD optimization.
         /// </summary>
         private Sys.String GetCodeTemplate(Sys.String rootDir)
         {
             Sys.Text.StringBuilder entries = new Sys.Text.StringBuilder();
-            if (!IO.Directory.Exists(rootDir)) return "";
+            if (!IO.Directory.Exists(rootDir))
+            {
+                return "";
+            }
 
-            var allFiles = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories).OrderBy(f => f);
+            Coll.IEnumerable<Sys.String> allFiles = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories).OrderBy(f => f);
 
-            foreach (var fullPath in allFiles)
+            foreach (Sys.String fullPath in allFiles)
             {
                 try
                 {
                     IO.FileInfo fi = new IO.FileInfo(fullPath);
-                    if (fi.Length > MAX_FILE_SIZE_BYTES) continue;
+                    if (fi.Length > MAX_FILE_SIZE_BYTES)
+                    {
+                        continue;
+                    }
 
                     Sys.String fname = IO.Path.GetFileName(fullPath);
                     Sys.String ext = IO.Path.GetExtension(fname).ToLower();
                     Sys.String lang = _langMap.GetValueOrDefault(ext, "text");
 
-                    // Stream-based reading instead of File.ReadAllText for lower memory footprint
+                    // OPTIMIZATION: Stream-based reading with SequentialScan hint for SSD
                     Sys.String fileContent;
-                    using (var stream = new IO.FileStream(fullPath, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.Read, 4096, true))
+                    using (var stream = new IO.FileStream(
+                        fullPath,
+                        IO.FileMode.Open,
+                        IO.FileAccess.Read,
+                        IO.FileShare.Read,
+                        FILE_BUFFER_SIZE,
+                        IO.FileOptions.SequentialScan))
                     using (var reader = new IO.StreamReader(stream, Sys.Text.Encoding.UTF8))
                     {
                         fileContent = reader.ReadToEnd().TrimEnd();
