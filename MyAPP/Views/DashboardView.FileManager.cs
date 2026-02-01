@@ -1,6 +1,4 @@
 ﻿using MahApps.Metro.IconPacks;
-using System.Reflection;
-using TextCopy;
 using Coll = System.Collections.Generic;
 using Comp = System.ComponentModel;
 using Controls = System.Windows.Controls;
@@ -21,27 +19,60 @@ namespace MyAPP.Views
 {
     public partial class DashboardView
     {
-        #region File Manager Logic (Memory Optimized for 8GB RAM + SSD)
+        #region File Manager Logic (Robust & Memory-Optimized for 8GB RAM)
 
-        private void LoadFileManager()
+        private static readonly Threading.SemaphoreSlim _fileOperationSemaphore = new Threading.SemaphoreSlim(1, 1);
+        private Sys.Boolean _isFileManagerBusy = false;
+
+        private async void LoadFileManager()
         {
-            if (!IO.Directory.Exists(_uploadDir))
+            if (this._isFileManagerBusy)
             {
-                IO.Directory.CreateDirectory(_uploadDir);
+                return;
             }
 
-            Obj.ObservableCollection<FileSystemItem> items = new Obj.ObservableCollection<FileSystemItem>();
-            BuildTree(_uploadDir, items);
-            this.TreeFiles.ItemsSource = items;
+            this._isFileManagerBusy = true;
 
-            this.TxtCurrentPath.Text = "Storage/";
+            try
+            {
+                Obj.ObservableCollection<FileSystemItem> items = await Tasks.Task.Run(() =>
+                {
+                    if (!IO.Directory.Exists(_uploadDir))
+                    {
+                        IO.Directory.CreateDirectory(_uploadDir);
+                    }
+
+                    Obj.ObservableCollection<FileSystemItem> collection = new Obj.ObservableCollection<FileSystemItem>();
+                    this.BuildTreeRecursive(_uploadDir, collection);
+                    return collection;
+                }).ConfigureAwait(false);
+
+                await this.Dispatcher.InvokeAsync(() =>
+                {
+                    this.TreeFiles.ItemsSource = items;
+                    this.TxtCurrentPath.Text = "Storage/";
+                });
+            }
+            catch (Sys.Exception ex)
+            {
+                Sys.Console.WriteLine($"LoadFileManager Error: {ex.Message}");
+                await this.Dispatcher.InvokeAsync(() =>
+                {
+                    this.ShowToast("Gagal memuat file manager", true);
+                });
+            }
+            finally
+            {
+                this._isFileManagerBusy = false;
+            }
         }
 
-        private static void BuildTree(Sys.String path, Obj.ObservableCollection<FileSystemItem> collection)
+        private void BuildTreeRecursive(Sys.String path, Obj.ObservableCollection<FileSystemItem> collection)
         {
             try
             {
-                foreach (Sys.String dir in IO.Directory.EnumerateDirectories(path).OrderBy(d => d))
+                Sys.String[] directories = IO.Directory.GetDirectories(path).OrderBy(d => d).ToArray();
+                foreach (Sys.String dir in directories)
                 {
                     FileSystemItem item = new FileSystemItem
                     {
@@ -50,11 +81,13 @@ namespace MyAPP.Views
                         IsFolder = true,
                         IsExpanded = true
                     };
-                    BuildTree(dir, item.Children);
+
+                    this.BuildTreeRecursive(dir, item.Children);
                     collection.Add(item);
                 }
 
-                foreach (Sys.String file in IO.Directory.EnumerateFiles(path).OrderBy(f => f))
+                Sys.String[] files = IO.Directory.GetFiles(path).OrderBy(f => f).ToArray();
+                foreach (Sys.String file in files)
                 {
                     IO.FileInfo fi = new IO.FileInfo(file);
                     collection.Add(new FileSystemItem
@@ -66,9 +99,13 @@ namespace MyAPP.Views
                     });
                 }
             }
+            catch (Sys.UnauthorizedAccessException ex)
+            {
+                Sys.Console.WriteLine($"Access Denied: {path} - {ex.Message}");
+            }
             catch (Sys.Exception ex)
             {
-                Sys.Console.WriteLine("Tree Build Error: " + ex.Message);
+                Sys.Console.WriteLine($"BuildTree Error for {path}: {ex.Message}");
             }
         }
 
@@ -95,11 +132,16 @@ namespace MyAPP.Views
         private void BtnRefreshFiles_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
             this.LoadFileManager();
-            this.ShowToast("File direfresh");
         }
 
         private async void BtnUploadFile_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
+            if (!await _fileOperationSemaphore.WaitAsync(0).ConfigureAwait(false))
+            {
+                this.ShowToast("Operasi file sedang berlangsung, mohon tunggu...", true);
+                return;
+            }
+
             Dialogs.OpenFileDialog dlg = new Dialogs.OpenFileDialog
             {
                 Multiselect = true,
@@ -108,54 +150,105 @@ namespace MyAPP.Views
 
             if (dlg.ShowDialog() == true)
             {
-                await this.UploadFilesAsync(dlg.FileNames).ConfigureAwait(true);
+                if (dlg.FileNames == null || dlg.FileNames.Length == 0)
+                {
+                    _fileOperationSemaphore.Release();
+                    return;
+                }
+
+                try
+                {
+                    Sys.Int32 successCount = await this.UploadFilesAsync(dlg.FileNames).ConfigureAwait(false);
+
+                    await this.Dispatcher.InvokeAsync(() =>
+                    {
+                        this.LoadFileManager();
+                        this.ShowToast($"File disimpan ({successCount}/{dlg.FileNames.Length})");
+                    });
+                }
+                catch (Sys.Exception ex)
+                {
+                    Sys.Console.WriteLine($"Upload operation failed: {ex.Message}");
+                    await this.Dispatcher.InvokeAsync(() =>
+                    {
+                        this.ShowToast("Upload gagal: Terjadi kesalahan sistem", true);
+                    });
+                }
+                finally
+                {
+                    _fileOperationSemaphore.Release();
+                }
+            }
+            else
+            {
+                _fileOperationSemaphore.Release();
             }
         }
 
-        private async Tasks.Task UploadFilesAsync(Sys.String[] files)
+        private async Tasks.Task<Sys.Int32> UploadFilesAsync(Sys.String[] files)
         {
             Sys.Int32 successCount = 0;
 
             foreach (Sys.String file in files)
             {
-                Sys.String dest = IO.Path.Combine(_uploadDir, IO.Path.GetFileName(file));
+                Sys.String fileName = IO.Path.GetFileName(file);
+                Sys.String dest = IO.Path.Combine(_uploadDir, fileName);
+
+                Sys.Int32 counter = 1;
+                Sys.String originalDest = dest;
+                while (IO.File.Exists(dest))
+                {
+                    Sys.String nameWithoutExt = IO.Path.GetFileNameWithoutExtension(originalDest);
+                    Sys.String extension = IO.Path.GetExtension(originalDest);
+                    dest = IO.Path.Combine(_uploadDir, $"{nameWithoutExt} ({counter}){extension}");
+                    counter++;
+                }
 
                 try
                 {
-                    using var sourceStream = new IO.FileStream(
-                        file,
-                        IO.FileMode.Open,
-                        IO.FileAccess.Read,
-                        IO.FileShare.Read,
-                        FILE_BUFFER_SIZE,
-                        IO.FileOptions.SequentialScan | IO.FileOptions.Asynchronous);
-
-                    using var destStream = new IO.FileStream(
-                        dest,
-                        IO.FileMode.Create,
-                        IO.FileAccess.Write,
-                        IO.FileShare.None,
-                        FILE_BUFFER_SIZE,
-                        IO.FileOptions.Asynchronous);
-
-                    await sourceStream.CopyToAsync(destStream).ConfigureAwait(false);
+                    await this.CopyFileWithStreamingAsync(file, dest).ConfigureAwait(false);
                     successCount++;
                 }
                 catch (Sys.Exception ex)
                 {
                     Sys.Console.WriteLine($"Upload Fail: {file} - {ex.Message}");
                 }
+
+                await Tasks.Task.Yield();
             }
 
-            Win.Application.Current.Dispatcher.Invoke(() =>
-            {
-                this.LoadFileManager();
-                this.ShowToast($"File disimpan ({successCount}/{files.Length})");
-            });
+            return successCount;
+        }
+
+        private async Tasks.Task CopyFileWithStreamingAsync(Sys.String sourcePath, Sys.String destPath)
+        {
+            using var sourceStream = new IO.FileStream(
+                sourcePath,
+                IO.FileMode.Open,
+                IO.FileAccess.Read,
+                IO.FileShare.Read,
+                FILE_BUFFER_SIZE,
+                IO.FileOptions.SequentialScan | IO.FileOptions.Asynchronous);
+
+            using var destStream = new IO.FileStream(
+                destPath,
+                IO.FileMode.Create,
+                IO.FileAccess.Write,
+                IO.FileShare.None,
+                FILE_BUFFER_SIZE,
+                IO.FileOptions.Asynchronous);
+
+            await sourceStream.CopyToAsync(destStream).ConfigureAwait(false);
         }
 
         private async void BtnUploadFolder_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
+            if (!await _fileOperationSemaphore.WaitAsync(0).ConfigureAwait(false))
+            {
+                this.ShowToast("Operasi file sedang berlangsung, mohon tunggu...", true);
+                return;
+            }
+
             Dialogs.OpenFolderDialog dialog = new Dialogs.OpenFolderDialog
             {
                 Title = "Pilih Folder",
@@ -167,10 +260,32 @@ namespace MyAPP.Views
                 Sys.String folderName = IO.Path.GetFileName(dialog.FolderName);
                 Sys.String destDir = IO.Path.Combine(_uploadDir, folderName);
 
-                await Tasks.Task.Run(() => this.CopyDirectoryAsync(dialog.FolderName, destDir)).ConfigureAwait(true);
+                try
+                {
+                    await this.CopyDirectoryAsync(dialog.FolderName, destDir).ConfigureAwait(false);
 
-                this.LoadFileManager();
-                this.ShowToast("Folder disalin ke storage");
+                    await this.Dispatcher.InvokeAsync(() =>
+                    {
+                        this.LoadFileManager();
+                        this.ShowToast("Folder disalin ke storage");
+                    });
+                }
+                catch (Sys.Exception ex)
+                {
+                    Sys.Console.WriteLine($"Folder upload failed: {ex.Message}");
+                    await this.Dispatcher.InvokeAsync(() =>
+                    {
+                        this.ShowToast("Upload folder gagal", true);
+                    });
+                }
+                finally
+                {
+                    _fileOperationSemaphore.Release();
+                }
+            }
+            else
+            {
+                _fileOperationSemaphore.Release();
             }
         }
 
@@ -183,38 +298,27 @@ namespace MyAPP.Views
                 return;
             }
 
-            IO.Directory.CreateDirectory(destinationDir);
+            await Tasks.Task.Run(() => IO.Directory.CreateDirectory(destinationDir)).ConfigureAwait(false);
 
-            foreach (IO.FileInfo file in dir.GetFiles())
+            IO.FileInfo[] files = dir.GetFiles();
+            foreach (IO.FileInfo file in files)
             {
                 Sys.String destPath = IO.Path.Combine(destinationDir, file.Name);
 
                 try
                 {
-                    using var sourceStream = new IO.FileStream(
-                        file.FullName,
-                        IO.FileMode.Open,
-                        IO.FileAccess.Read,
-                        IO.FileShare.Read,
-                        FILE_BUFFER_SIZE,
-                        IO.FileOptions.SequentialScan | IO.FileOptions.Asynchronous);
-
-                    using var destStream = new IO.FileStream(
-                        destPath,
-                        IO.FileMode.Create,
-                        IO.FileAccess.Write,
-                        IO.FileShare.None,
-                        FILE_BUFFER_SIZE,
-                        IO.FileOptions.Asynchronous);
-
-                    await sourceStream.CopyToAsync(destStream).ConfigureAwait(false);
+                    await this.CopyFileWithStreamingAsync(file.FullName, destPath).ConfigureAwait(false);
                 }
-                catch
+                catch (Sys.Exception ex)
                 {
+                    Sys.Console.WriteLine($"Skip file {file.Name}: {ex.Message}");
                 }
+
+                await Tasks.Task.Yield();
             }
 
-            foreach (IO.DirectoryInfo subDir in dir.GetDirectories())
+            IO.DirectoryInfo[] subDirs = dir.GetDirectories();
+            foreach (IO.DirectoryInfo subDir in subDirs)
             {
                 Sys.String newDestDir = IO.Path.Combine(destinationDir, subDir.Name);
                 await this.CopyDirectoryAsync(subDir.FullName, newDestDir).ConfigureAwait(false);
@@ -225,6 +329,12 @@ namespace MyAPP.Views
         {
             if (sender is Controls.Button btn && btn.Tag is FileSystemItem item)
             {
+                if (!await _fileOperationSemaphore.WaitAsync(0).ConfigureAwait(false))
+                {
+                    this.ShowToast("Operasi file sedang berlangsung...", true);
+                    return;
+                }
+
                 try
                 {
                     await Tasks.Task.Run(() =>
@@ -237,14 +347,24 @@ namespace MyAPP.Views
                         {
                             IO.File.Delete(item.FullPath);
                         }
-                    }).ConfigureAwait(true);
+                    }).ConfigureAwait(false);
 
-                    this.LoadFileManager();
-                    this.ShowToast("Item berhasil dihapus");
+                    await this.Dispatcher.InvokeAsync(() =>
+                    {
+                        this.LoadFileManager();
+                        this.ShowToast("Item berhasil dihapus");
+                    });
                 }
                 catch (Sys.Exception ex)
                 {
-                    this.ShowToast("Gagal menghapus: " + ex.Message, true);
+                    await this.Dispatcher.InvokeAsync(() =>
+                    {
+                        this.ShowToast("Gagal menghapus: " + ex.Message, true);
+                    });
+                }
+                finally
+                {
+                    _fileOperationSemaphore.Release();
                 }
             }
         }
@@ -256,7 +376,7 @@ namespace MyAPP.Views
                 return;
             }
 
-            await Tasks.Task.Run(() =>
+            await Tasks.Task.Run(async () =>
             {
                 try
                 {
@@ -264,12 +384,28 @@ namespace MyAPP.Views
 
                     foreach (IO.FileInfo file in dir.GetFiles())
                     {
-                        try { file.Delete(); } catch { /* Ignore individual file errors */ }
+                        try
+                        {
+                            file.Delete();
+                        }
+                        catch
+                        {
+                        }
+
+                        await Tasks.Task.Yield();
                     }
 
                     foreach (IO.DirectoryInfo subDir in dir.GetDirectories())
                     {
-                        try { subDir.Delete(true); } catch { /* Ignore individual folder errors */ }
+                        try
+                        {
+                            subDir.Delete(true);
+                        }
+                        catch
+                        {
+                        }
+
+                        await Tasks.Task.Yield();
                     }
                 }
                 catch (Sys.Exception ex)
