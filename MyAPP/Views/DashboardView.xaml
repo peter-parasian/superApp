@@ -7,6 +7,7 @@
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              mc:Ignorable="d" 
              d:DesignHeight="1200" d:DesignWidth="1400"
+             MinWidth="900"
              FontFamily="Segoe UI">
 
     <UserControl.Resources>
@@ -186,8 +187,8 @@
 
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="320"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="280" MinWidth="240"/>
+                    <ColumnDefinition Width="*" MinWidth="500"/>
                 </Grid.ColumnDefinitions>
 
                 <Grid Grid.Column="0" Margin="0,0,20,0">
@@ -248,7 +249,7 @@
                 <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="ViewActivePreset" Visibility="Collapsed">
 
-                        <TextBlock x:Name="TxtActivePresetName" Text="PILIH PRESET" FontSize="32" FontWeight="Bold" Foreground="#111827"/>
+                        <TextBlock x:Name="TxtActivePresetName" Text="PILIH PRESET" FontSize="32" FontWeight="Bold" Foreground="#111827" TextTrimming="CharacterEllipsis"/>
                         <TextBlock x:Name="TxtActivePresetSubtitle" Text="Pilih preset dari daftar untuk mulai mengelola." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
 
                         <Border BorderBrush="#e5e7eb" BorderThickness="0,0,0,1" Margin="0,16,0,24" />
@@ -334,7 +335,7 @@
                                                     </Grid.ColumnDefinitions>
 
                                                     <Border HorizontalAlignment="Left" Background="#eef2ff" CornerRadius="20" Padding="16,6">
-                                                        <TextBlock Text="{Binding Name, StringFormat='{}{0}'}" FontFamily="Consolas" FontWeight="Bold" Foreground="#4f46e5" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                                                        <TextBlock Text="{Binding Name, StringFormat='{}{0}'}" FontFamily="Consolas" FontWeight="Bold" Foreground="#4f46e5" TextTrimming="CharacterEllipsis" MaxWidth="180"/>
                                                     </Border>
 
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -469,7 +470,7 @@
                                         </Grid.RowDefinitions>
 
                                         <Border Background="#f8f9fa" BorderBrush="#e5e7eb" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0" Padding="16,8">
-                                            <TextBlock x:Name="TxtCurrentPath" Text="uploaded/" FontFamily="Consolas" Foreground="#6b7280"/>
+                                            <TextBlock x:Name="TxtCurrentPath" Text="Storage/" FontFamily="Consolas" Foreground="#6b7280"/>
                                         </Border>
 
                                         <TreeView x:Name="TreeFiles" Grid.Row="1" BorderThickness="0" Padding="8" MinHeight="200" MaxHeight="400">

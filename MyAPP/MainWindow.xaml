@@ -6,8 +6,10 @@
                  Icon="MyAPP.ico"
                  WindowStartupLocation="CenterScreen"
                  ResizeMode="CanResize"
-                 Width="900"
-                 Height="600">
+                 Width="1000"
+                 Height="700"
+                 MinWidth="950"
+                 MinHeight="650">
     <Grid>
         <ContentControl x:Name="MainContent" />
     </Grid>
