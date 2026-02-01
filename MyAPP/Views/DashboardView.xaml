@@ -8,7 +8,8 @@
              mc:Ignorable="d" 
              d:DesignHeight="1200" d:DesignWidth="1400"
              MinWidth="900"
-             FontFamily="Segoe UI">
+             FontFamily="Segoe UI"
+             PreviewKeyDown="UserControl_PreviewKeyDown">
 
     <UserControl.Resources>
         <Style x:Key="SidebarItemStyle" TargetType="ListBoxItem">
@@ -126,7 +127,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Enhanced style for Add Preset and Add Template buttons to create pop-up effect on hover -->
         <Style x:Key="BtnAddHighlightPrimary" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="RenderTransform">
@@ -150,7 +150,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Enhanced style for Add Variable buttons to create pop-up effect on hover -->
         <Style x:Key="BtnAddHighlightWhite" TargetType="Button" BasedOn="{StaticResource BtnWhite}">
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="RenderTransform">
@@ -605,29 +604,38 @@
                     <StackPanel Grid.Row="1">
                         <StackPanel x:Name="FormPreset" Visibility="Collapsed">
                             <TextBlock Text="Nama Preset" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
-                            <TextBox x:Name="InputPresetName" Style="{StaticResource ModernTextBox}"/>
+                            <TextBox x:Name="InputPresetName" Style="{StaticResource ModernTextBox}" KeyDown="Input_KeyDown"/>
                         </StackPanel>
 
                         <StackPanel x:Name="FormVariable" Visibility="Collapsed">
                             <TextBlock Text="Templat" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
-                            <ComboBox x:Name="InputVarTemplate" Style="{StaticResource ModernComboBox}" Margin="0,0,0,16" DisplayMemberPath="Title" SelectedValuePath="Id"/>
+                            <ComboBox x:Name="InputVarTemplate" Style="{StaticResource ModernComboBox}" Margin="0,0,0,16" DisplayMemberPath="Title" SelectedValuePath="Id" KeyDown="Input_KeyDown"/>
 
                             <TextBlock Text="Nama Variabel" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
-                            <TextBox x:Name="InputVarKey" Style="{StaticResource ModernTextBox}" FontFamily="Consolas" Margin="0,0,0,16"/>
+                            <TextBox x:Name="InputVarKey" Style="{StaticResource ModernTextBox}" FontFamily="Consolas" Margin="0,0,0,16" KeyDown="Input_KeyDown"/>
 
                             <TextBlock Text="Nilai Default (Akan muncul sebagai watermark)" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
-                            <TextBox x:Name="InputVarValue" Style="{StaticResource ModernTextBox}" Height="100" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"/>
+                            <TextBlock Text="*Tekan Ctrl + Enter untuk simpan
+                                            " FontSize="11" Foreground="#6b7280" Margin="0,-4,0,8"/>
+                            <TextBox x:Name="InputVarValue" Style="{StaticResource ModernTextBox}" Height="100" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" KeyDown="Input_KeyDown"/>
                         </StackPanel>
 
                         <StackPanel x:Name="FormTemplate" Visibility="Collapsed">
                             <TextBlock Text="Judul Templat" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
-                            <TextBox x:Name="InputTemplateTitle" Style="{StaticResource ModernTextBox}" Margin="0,0,0,16"/>
+                            <TextBox x:Name="InputTemplateTitle" Style="{StaticResource ModernTextBox}" Margin="0,0,0,16" KeyDown="Input_KeyDown"/>
 
                             <TextBlock Text="Konten" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="#495057"/>
+                            <TextBlock FontSize="11" Foreground="#6b7280" Margin="0,4,0,8" LineHeight="16">
+                                <Run Text="*Tekan Ctrl + Enter untuk simpan" />
+                                <LineBreak/>
+                                <Run>{{xxc}} untuk seluruh kode</Run>
+                                <LineBreak/>
+                                <Run>`App.xaml`, `App.xaml.cs`, `AssemblyInfo.cs`, `AuthState.cs`, `DashboardView.Data.cs`, `DashboardView.FileManager.cs`, `DashboardView.Modal.cs`, `DashboardView.Navigation.cs`, `DashboardView.PresetCRUD.cs`, `DashboardView.Preview.cs`, `DashboardView.TemplateCRUD.cs`, `DashboardView.Toast.cs`, `DashboardView.VariableCRUD.cs`, `DashboardView.xaml`, `DashboardView.xaml.cs`, `LoginView.xaml`, `LoginView.xaml.cs`, `LoginViewModel.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs`, `ModeSelectionView.xaml`, `ModeSelectionView.xaml.cs`, `MyAPP.csproj`, `Preset.cs`, `SupabaseAuthService.cs`, `SupabaseDataService.cs`, `Template.cs`, `Variable.cs` untuk seluruh nama file</Run>
+                            </TextBlock>
                             <TextBox x:Name="InputTemplateContent" Style="{StaticResource ModernTextBox}" 
                                      Height="200" TextWrapping="Wrap" AcceptsReturn="True" 
                                      FontFamily="Consolas" VerticalContentAlignment="Top" 
-                                     VerticalScrollBarVisibility="Auto"/>
+                                     VerticalScrollBarVisibility="Auto" KeyDown="Input_KeyDown"/>
                         </StackPanel>
                     </StackPanel>
 

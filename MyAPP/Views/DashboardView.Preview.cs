@@ -49,8 +49,6 @@ namespace MyAPP.Views
             {".log", "log"}, {".lock", "text"}
         };
 
-        #region Preview Processing (Supporting both {{xxc}} and backtick file listing)
-
         private void BtnCheckPreview_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
             if (this._selectedTemplate == null)
@@ -93,6 +91,15 @@ namespace MyAPP.Views
             {
                 Sys.Console.WriteLine(Sys.String.Concat("Copy Error: ", ex));
                 this.ShowToast(Sys.String.Concat("Gagal menyalin: ", ex.Message), true);
+            }
+        }
+
+        private void UserControl_PreviewKeyDown(Sys.Object sender, Win.Input.KeyEventArgs e)
+        {
+            if (e.Key == Win.Input.Key.Q && (Win.Input.Keyboard.Modifiers & Win.Input.ModifierKeys.Control) == Win.Input.ModifierKeys.Control)
+            {
+                this.BtnCopyResult_Click(sender, null);
+                e.Handled = true;
             }
         }
 
@@ -190,9 +197,9 @@ namespace MyAPP.Views
             }
 
             Coll.IEnumerable<Sys.String> filenames = IO.Directory.EnumerateFiles(rootDir, "*", IO.SearchOption.AllDirectories)
-                                        .Select(IO.Path.GetFileName)
-                                        .Where(name => name != null)
-                                        .OrderBy(name => name);
+                                                    .Select(IO.Path.GetFileName)
+                                                    .Where(name => name != null)
+                                                    .OrderBy(name => name);
 
             return Sys.String.Join(", ", filenames.Select(name => $"`{name}`"));
         }
@@ -245,7 +252,5 @@ namespace MyAPP.Views
             }
             return entries.ToString().TrimEnd();
         }
-
-        #endregion
     }
 }

@@ -16,6 +16,7 @@ using Sys = System;
 using Tasks = System.Threading.Tasks;
 using Threading = System.Threading;
 using Win = System.Windows;
+using Input = System.Windows.Input; 
 
 namespace MyAPP.Views
 {
@@ -74,6 +75,26 @@ namespace MyAPP.Views
             {
                 Sys.Console.WriteLine(Sys.String.Concat("SaveModal Error: ", ex));
                 this.ShowToast(ex.Message, true);
+            }
+        }
+
+        private void Input_KeyDown(Sys.Object sender, Input.KeyEventArgs e)
+        {
+            if (e.Key == Input.Key.Enter)
+            {
+                if (sender == this.InputVarValue || sender == this.InputTemplateContent)
+                {
+                    if ((Input.Keyboard.Modifiers & Input.ModifierKeys.Control) == Input.ModifierKeys.Control)
+                    {
+                        this.BtnSaveModal_Click(sender, e);
+                        e.Handled = true;
+                    }
+                }
+                else
+                {
+                    this.BtnSaveModal_Click(sender, e);
+                    e.Handled = true;
+                }
             }
         }
 
