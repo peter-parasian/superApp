@@ -126,6 +126,54 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Enhanced style for Add Preset and Add Template buttons to create pop-up effect on hover -->
+        <Style x:Key="BtnAddHighlightPrimary" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1.0" ScaleY="1.0"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.05" ScaleY="1.05"/>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect BlurRadius="12" ShadowDepth="6" Direction="270" Opacity="0.25" Color="{StaticResource ColorPrimary}"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Enhanced style for Add Variable buttons to create pop-up effect on hover -->
+        <Style x:Key="BtnAddHighlightWhite" TargetType="Button" BasedOn="{StaticResource BtnWhite}">
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1.0" ScaleY="1.0"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.05" ScaleY="1.05"/>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect BlurRadius="12" ShadowDepth="6" Direction="270" Opacity="0.2" Color="#374151"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </UserControl.Resources>
 
     <Grid Background="{StaticResource BrushBg}">
@@ -169,7 +217,7 @@
                             <TextBlock Text="Impor" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource BtnPrimary}" Click="BtnNewPreset_Click" Margin="0,0,12,8">
+                    <Button Style="{StaticResource BtnAddHighlightPrimary}" Click="BtnNewPreset_Click" Margin="0,0,12,8">
                         <StackPanel Orientation="Horizontal">
                             <iconPacks:PackIconMaterial Kind="Plus" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Baru" VerticalAlignment="Center"/>
@@ -204,49 +252,53 @@
                         </Border>
                     </DockPanel>
 
-                    <ListBox Grid.Row="1" x:Name="ListPresets" Background="Transparent" BorderThickness="0" 
-                             ItemContainerStyle="{StaticResource SidebarItemStyle}"
-                             SelectionChanged="ListPresets_SelectionChanged"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             VirtualizingStackPanel.IsVirtualizing="True"
-                             VirtualizingStackPanel.VirtualizationMode="Recycling">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+                    <Border Grid.Row="1" Background="Transparent" CornerRadius="8" ClipToBounds="True">
+                        <ListBox x:Name="ListPresets" Background="Transparent" BorderThickness="0" 
+                                 ItemContainerStyle="{StaticResource SidebarItemStyle}"
+                                 SelectionChanged="ListPresets_SelectionChanged"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 VirtualizingStackPanel.IsVirtualizing="True"
+                                 VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                 Padding="0,0,12,0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
-                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="15" Foreground="#1f2937" Margin="0,0,0,8" TextTrimming="CharacterEllipsis"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Border Background="#f3f4f6" CornerRadius="4" Padding="8,2" Margin="0,0,6,0">
-                                                <TextBlock Text="{Binding Templates.Count, FallbackValue='0', StringFormat='{}{0} Templat'}" FontSize="10" Foreground="#6b7280"/>
-                                            </Border>
-                                            <Border Background="#f3f4f6" CornerRadius="4" Padding="8,2">
-                                                <TextBlock Text="{Binding VariableCount, FallbackValue='0', StringFormat='{}{0} Var'}" FontSize="10" Foreground="#6b7280"/>
-                                            </Border>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="15" Foreground="#1f2937" Margin="0,0,0,8" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Background="#f3f4f6" CornerRadius="4" Padding="8,2" Margin="0,0,6,0">
+                                                    <TextBlock Text="{Binding Templates.Count, FallbackValue='0', StringFormat='{}{0} Templat'}" FontSize="10" Foreground="#6b7280"/>
+                                                </Border>
+                                                <Border Background="#f3f4f6" CornerRadius="4" Padding="8,2">
+                                                    <TextBlock Text="{Binding VariableCount, FallbackValue='0', StringFormat='{}{0} Var'}" FontSize="10" Foreground="#6b7280"/>
+                                                </Border>
+                                            </StackPanel>
                                         </StackPanel>
-                                    </StackPanel>
 
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Button Style="{StaticResource BtnEditAnim}" Margin="0,0,6,0"
-                                                Tag="{Binding}" Click="BtnEditPreset_Click">
-                                            <iconPacks:PackIconMaterial Kind="PencilOutline" Width="16" Height="16"/>
-                                        </Button>
-                                        <Button Style="{StaticResource BtnDeleteAnim}"
-                                                Tag="{Binding}" Click="BtnDeletePreset_Click">
-                                            <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="16" Height="16"/>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource BtnEditAnim}" Margin="0,0,6,0"
+                                                    Tag="{Binding}" Click="BtnEditPreset_Click">
+                                                <iconPacks:PackIconMaterial Kind="PencilOutline" Width="16" Height="16"/>
+                                            </Button>
+                                            <Button Style="{StaticResource BtnDeleteAnim}"
+                                                    Tag="{Binding}" Click="BtnDeletePreset_Click">
+                                                <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="16" Height="16"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
                 </Grid>
 
-                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
                     <StackPanel x:Name="ViewActivePreset" Visibility="Collapsed">
 
                         <TextBlock x:Name="TxtActivePresetName" Text="PILIH PRESET" FontSize="32" FontWeight="Bold" Foreground="#111827" TextTrimming="CharacterEllipsis"/>
@@ -262,7 +314,7 @@
 
                             <TextBlock Text="Belum ada templat." FontStyle="Italic" FontSize="15" Foreground="#6b7280" VerticalAlignment="Center"/>
 
-                            <Button Grid.Column="1" Style="{StaticResource BtnPrimary}" Click="BtnAddTemplate_Click" Padding="24,10">
+                            <Button Grid.Column="1" Style="{StaticResource BtnAddHighlightPrimary}" Click="BtnAddTemplate_Click" Padding="24,10">
                                 <StackPanel Orientation="Horizontal">
                                     <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <TextBlock Text="Templat" VerticalAlignment="Center"/>
@@ -275,7 +327,7 @@
                                 <WrapPanel Orientation="Horizontal" DockPanel.Dock="Left" x:Name="WrapTemplateButtons" VerticalAlignment="Center">
                                 </WrapPanel>
 
-                                <Button Style="{StaticResource BtnPrimary}" HorizontalAlignment="Right" Click="BtnAddTemplate_Click" Margin="12,0,0,0">
+                                <Button Style="{StaticResource BtnAddHighlightPrimary}" HorizontalAlignment="Right" Click="BtnAddTemplate_Click" Margin="12,0,0,0">
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                         <TextBlock Text="Templat" VerticalAlignment="Center"/>
@@ -288,7 +340,7 @@
                                     <TextBlock Text="VARIABEL INPUT" FontWeight="Bold" FontSize="14" Foreground="#111827"/>
                                     <TextBlock Text="Isi nilai di bawah ini untuk mengubah konten." FontSize="14" Foreground="#6b7280" Margin="0,4,0,0"/>
                                 </StackPanel>
-                                <Button Style="{StaticResource BtnWhite}" HorizontalAlignment="Right" Click="BtnAddVariable_Click">
+                                <Button Style="{StaticResource BtnAddHighlightWhite}" HorizontalAlignment="Right" Click="BtnAddVariable_Click">
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                         <TextBlock Text="Variabel" VerticalAlignment="Center"/>
@@ -301,7 +353,7 @@
                                     <iconPacks:PackIconMaterial Kind="Tag" Width="48" Height="48" Foreground="#fbbf24" HorizontalAlignment="Center" Margin="0,0,0,16"/>
                                     <TextBlock Text="Tidak ada variabel" FontSize="16" FontWeight="Bold" Foreground="#374151" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                                     <TextBlock Text="Templat ini belum memiliki variabel dinamis." FontSize="14" Foreground="#6b7280" HorizontalAlignment="Center" Margin="0,0,0,24"/>
-                                    <Button Style="{StaticResource BtnWhite}" Click="BtnAddVariable_Click" HorizontalAlignment="Center" Padding="20,10">
+                                    <Button Style="{StaticResource BtnAddHighlightWhite}" Click="BtnAddVariable_Click" HorizontalAlignment="Center" Padding="20,10">
                                         <StackPanel Orientation="Horizontal">
                                             <iconPacks:PackIconMaterial Kind="Plus" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                             <TextBlock Text="Tambah Variabel" VerticalAlignment="Center"/>
@@ -462,7 +514,7 @@
                                     </StackPanel>
                                 </DockPanel>
 
-                                <Border Grid.Row="1" Background="White" CornerRadius="12" BorderBrush="#e5e7eb" BorderThickness="1" Padding="0">
+                                <Border Grid.Row="1" Background="White" CornerRadius="12" BorderBrush="#e5e7eb" BorderThickness="1" Padding="0" Margin="0,0,4,0">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -473,28 +525,30 @@
                                             <TextBlock x:Name="TxtCurrentPath" Text="Storage/" FontFamily="Consolas" Foreground="#6b7280"/>
                                         </Border>
 
-                                        <TreeView x:Name="TreeFiles" Grid.Row="1" BorderThickness="0" Padding="8" MinHeight="200" MaxHeight="400">
-                                            <TreeView.ItemContainerStyle>
-                                                <Style TargetType="{x:Type TreeViewItem}">
-                                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
-                                                </Style>
-                                            </TreeView.ItemContainerStyle>
-                                            <TreeView.ItemTemplate>
-                                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
-                                                        <iconPacks:PackIconMaterial Kind="{Binding IconKind}" Foreground="{Binding IconColor}" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="#374151"/>
-                                                        <TextBlock Text="{Binding SizeDisplay}" Foreground="#9ca3af" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Grid.Row="1" ClipToBounds="True">
+                                            <TreeView x:Name="TreeFiles" BorderThickness="0" Padding="4,8,12,8" MinHeight="200" MaxHeight="400" Background="Transparent">
+                                                <TreeView.ItemContainerStyle>
+                                                    <Style TargetType="{x:Type TreeViewItem}">
+                                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                                    </Style>
+                                                </TreeView.ItemContainerStyle>
+                                                <TreeView.ItemTemplate>
+                                                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
+                                                            <iconPacks:PackIconMaterial Kind="{Binding IconKind}" Foreground="{Binding IconColor}" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="#374151"/>
+                                                            <TextBlock Text="{Binding SizeDisplay}" Foreground="#9ca3af" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
 
-                                                        <Button Style="{StaticResource BtnDeleteAnim}" Width="24" Height="24" Margin="12,0,0,0" 
-                                                                Tag="{Binding}" Click="BtnDeleteFile_Click"
-                                                                ToolTip="Hapus">
-                                                            <iconPacks:PackIconMaterial Kind="Close" Width="10" Height="10"/>
-                                                        </Button>
-                                                    </StackPanel>
-                                                </HierarchicalDataTemplate>
-                                            </TreeView.ItemTemplate>
-                                        </TreeView>
+                                                            <Button Style="{StaticResource BtnDeleteAnim}" Width="24" Height="24" Margin="12,0,0,0" 
+                                                                    Tag="{Binding}" Click="BtnDeleteFile_Click"
+                                                                    ToolTip="Hapus">
+                                                                <iconPacks:PackIconMaterial Kind="Close" Width="10" Height="10"/>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </HierarchicalDataTemplate>
+                                                </TreeView.ItemTemplate>
+                                            </TreeView>
+                                        </Border>
                                     </Grid>
                                 </Border>
                             </Grid>

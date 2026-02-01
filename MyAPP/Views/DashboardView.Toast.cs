@@ -23,7 +23,7 @@ namespace MyAPP.Views
     {
         #region Toast Notification Helper
 
-        private async void ShowToast(Sys.String message, Sys.Boolean isError = false)
+        private async void ShowToast(Sys.String message, Sys.Boolean isError = false, Sys.Boolean isDelete = false)
         {
             this.ToastText.Text = message;
 
@@ -31,6 +31,11 @@ namespace MyAPP.Views
             {
                 this.ToastIcon.Kind = PackIconMaterialKind.AlertCircle;
                 this.ToastIcon.Foreground = Media.Brushes.Red;
+            }
+            else if (isDelete)
+            {
+                this.ToastIcon.Kind = PackIconMaterialKind.CheckCircle;
+                this.ToastIcon.Foreground = Media.Brushes.Orange;
             }
             else
             {

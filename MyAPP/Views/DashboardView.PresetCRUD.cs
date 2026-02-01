@@ -58,7 +58,7 @@ namespace MyAPP.Views
                     }
 
                     await this.LoadPresetsAsync();
-                    this.ShowToast("Preset dihapus");
+                    this.ShowToast("Preset dihapus", isDelete: true);
                 }
                 catch (Sys.Exception ex)
                 {

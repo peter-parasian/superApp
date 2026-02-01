@@ -143,7 +143,7 @@ namespace MyAPP.Views
                 await this._dataService.DeleteTemplateAsync(this._selectedTemplate.Id).ConfigureAwait(true);
                 this._selectedTemplate = null;
                 await this.LoadPresetsAsync();
-                this.ShowToast("Templat dihapus");
+                this.ShowToast("Templat dihapus", isDelete: true);
             }
             catch (Sys.Exception ex)
             {

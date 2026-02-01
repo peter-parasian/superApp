@@ -78,7 +78,7 @@ namespace MyAPP.Views
 
                     await this.RestoreTemplateSelectionAsync(currentTemplateId).ConfigureAwait(true);
 
-                    this.ShowToast("Variabel dihapus");
+                    this.ShowToast("Variabel dihapus", isDelete: true);
                 }
                 catch (Sys.Exception ex)
                 {
