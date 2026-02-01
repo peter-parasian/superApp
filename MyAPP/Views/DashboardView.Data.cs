@@ -49,6 +49,8 @@ namespace MyAPP.Views
                     if (this._currentPresets.Count > 0 && this._selectedPreset == null)
                     {
                         this.ListPresets.SelectedIndex = 0;
+                        this._selectedPreset = this._currentPresets[0];
+                        this.RefreshCurrentPresetUI();
                     }
                     else if (this._selectedPreset != null)
                     {
@@ -56,7 +58,7 @@ namespace MyAPP.Views
                         if (existing != null)
                         {
                             this.ListPresets.SelectedItem = existing;
-                            this._selectedPreset = existing; 
+                            this._selectedPreset = existing;
                         }
                     }
                 }
