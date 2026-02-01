@@ -630,7 +630,7 @@
                                 <LineBreak/>
                                 <Run>{{xxc}} untuk seluruh kode</Run>
                                 <LineBreak/>
-                                <Run>`App.xaml`, `App.xaml.cs`, `AssemblyInfo.cs`, `AuthState.cs`, `DashboardView.Data.cs`, `DashboardView.FileManager.cs`, `DashboardView.Modal.cs`, `DashboardView.Navigation.cs`, `DashboardView.PresetCRUD.cs`, `DashboardView.Preview.cs`, `DashboardView.TemplateCRUD.cs`, `DashboardView.Toast.cs`, `DashboardView.VariableCRUD.cs`, `DashboardView.xaml`, `DashboardView.xaml.cs`, `LoginView.xaml`, `LoginView.xaml.cs`, `LoginViewModel.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs`, `ModeSelectionView.xaml`, `ModeSelectionView.xaml.cs`, `MyAPP.csproj`, `Preset.cs`, `SupabaseAuthService.cs`, `SupabaseDataService.cs`, `Template.cs`, `Variable.cs` untuk seluruh nama file</Run>
+                                <Run>{{file}} untuk seluruh nama file</Run>
                             </TextBlock>
                             <TextBox x:Name="InputTemplateContent" Style="{StaticResource ModernTextBox}" 
                                      Height="200" TextWrapping="Wrap" AcceptsReturn="True" 
