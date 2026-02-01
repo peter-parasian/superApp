@@ -84,6 +84,47 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="BtnEditAnim" TargetType="Button" BasedOn="{StaticResource BtnIconSquare}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#e0f2fe"/>
+                    <Setter Property="BorderBrush" Value="#0d6efd"/>
+                    <Setter Property="Foreground" Value="#0d6efd"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnDeleteAnim" TargetType="Button" BasedOn="{StaticResource BtnIconSquare}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#fee2e2"/>
+                    <Setter Property="BorderBrush" Value="#dc3545"/>
+                    <Setter Property="Foreground" Value="#dc3545"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnExportAnim" TargetType="Button" BasedOn="{StaticResource BtnWhite}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#fffbeb"/>
+                    <Setter Property="BorderBrush" Value="#fbbf24"/>
+                    <Setter Property="Foreground" Value="#b45309"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BtnImportAnim" TargetType="Button" BasedOn="{StaticResource BtnWhite}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#ecfdf5"/>
+                    <Setter Property="BorderBrush" Value="#10b981"/>
+                    <Setter Property="Foreground" Value="#047857"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </UserControl.Resources>
 
     <Grid Background="{StaticResource BrushBg}">
@@ -115,13 +156,13 @@
                 </StackPanel>
 
                 <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <Button Style="{StaticResource BtnWhite}" Margin="0,0,12,8" Click="BtnExport_Click">
+                    <Button Style="{StaticResource BtnExportAnim}" Margin="0,0,12,8" Click="BtnExport_Click">
                         <StackPanel Orientation="Horizontal">
                             <iconPacks:PackIconMaterial Kind="FileExport" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Ekspor" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource BtnWhite}" Margin="0,0,12,8" Click="BtnImport_Click">
+                    <Button Style="{StaticResource BtnImportAnim}" Margin="0,0,12,8" Click="BtnImport_Click">
                         <StackPanel Orientation="Horizontal">
                             <iconPacks:PackIconMaterial Kind="FileImport" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Impor" VerticalAlignment="Center"/>
@@ -183,17 +224,17 @@
                                                 <TextBlock Text="{Binding Templates.Count, FallbackValue='0', StringFormat='{}{0} Templat'}" FontSize="10" Foreground="#6b7280"/>
                                             </Border>
                                             <Border Background="#f3f4f6" CornerRadius="4" Padding="8,2">
-                                                <TextBlock Text="{Binding VariableCount, FallbackValue='0 Var'}" FontSize="10" Foreground="#6b7280"/>
+                                                <TextBlock Text="{Binding VariableCount, FallbackValue='0', StringFormat='{}{0} Var'}" FontSize="10" Foreground="#6b7280"/>
                                             </Border>
                                         </StackPanel>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Button Style="{StaticResource BtnIconSquare}" Margin="0,0,6,0"
+                                        <Button Style="{StaticResource BtnEditAnim}" Margin="0,0,6,0"
                                                 Tag="{Binding}" Click="BtnEditPreset_Click">
                                             <iconPacks:PackIconMaterial Kind="PencilOutline" Width="16" Height="16"/>
                                         </Button>
-                                        <Button Style="{StaticResource BtnIconSquare}"
+                                        <Button Style="{StaticResource BtnDeleteAnim}"
                                                 Tag="{Binding}" Click="BtnDeletePreset_Click">
                                             <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="16" Height="16"/>
                                         </Button>
@@ -297,11 +338,11 @@
                                                     </Border>
 
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                        <Button Style="{StaticResource BtnIconSquare}" Margin="0,0,8,0"
+                                                        <Button Style="{StaticResource BtnEditAnim}" Margin="0,0,8,0"
                                                                 Tag="{Binding}" Click="BtnEditVariable_Click">
                                                             <iconPacks:PackIconMaterial Kind="PencilOutline" Width="16" Height="16"/>
                                                         </Button>
-                                                        <Button Style="{StaticResource BtnIconSquare}"
+                                                        <Button Style="{StaticResource BtnDeleteAnim}"
                                                                 Tag="{Binding}" Click="BtnDeleteVariable_Click">
                                                             <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="16" Height="16"/>
                                                         </Button>
@@ -351,7 +392,7 @@
                                             <Button Content="Edit Konten" Background="Transparent" Foreground="#0d6efd" FontWeight="Bold" 
                                                     BorderThickness="0" Cursor="Hand" Margin="0,0,12,0"
                                                     Click="BtnEditPreviewContent_Click"/>
-                                            <Button Style="{StaticResource BtnIconSquare}" Width="32" Height="32" Click="BtnDeleteTemplate_Click">
+                                            <Button Style="{StaticResource BtnDeleteAnim}" Width="32" Height="32" Click="BtnDeleteTemplate_Click">
                                                 <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="14" Height="14"/>
                                             </Button>
                                         </StackPanel>
@@ -444,11 +485,10 @@
                                                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="#374151"/>
                                                         <TextBlock Text="{Binding SizeDisplay}" Foreground="#9ca3af" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
 
-                                                        <Button Style="{StaticResource BtnIconSquare}" Width="24" Height="24" Margin="12,0,0,0" 
-                                                                Background="Transparent" BorderThickness="0"
+                                                        <Button Style="{StaticResource BtnDeleteAnim}" Width="24" Height="24" Margin="12,0,0,0" 
                                                                 Tag="{Binding}" Click="BtnDeleteFile_Click"
                                                                 ToolTip="Hapus">
-                                                            <iconPacks:PackIconMaterial Kind="Close" Width="10" Height="10" Foreground="#ef4444"/>
+                                                            <iconPacks:PackIconMaterial Kind="Close" Width="10" Height="10"/>
                                                         </Button>
                                                     </StackPanel>
                                                 </HierarchicalDataTemplate>
