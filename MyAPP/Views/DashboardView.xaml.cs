@@ -41,6 +41,8 @@ namespace MyAPP.Views
             "uploaded"
         );
 
+        private Sys.Boolean _isSuppressingSelectionChange = false;
+
         public class VariableViewModel : Comp.INotifyPropertyChanged
         {
             private Sys.String _currentValue = Sys.String.Empty;

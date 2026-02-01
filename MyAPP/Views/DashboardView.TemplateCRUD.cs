@@ -95,30 +95,39 @@ namespace MyAPP.Views
 
         private async Tasks.Task RestoreTemplateSelectionAsync(Sys.Guid templateIdToSelect)
         {
-            await Tasks.Task.Run(() =>
+            this._isSuppressingSelectionChange = true;
+
+            try
             {
-                Win.Application.Current.Dispatcher.Invoke(() =>
+                await Tasks.Task.Run(() =>
                 {
-                    if (this._selectedPreset != null)
+                    Win.Application.Current.Dispatcher.Invoke(() =>
                     {
-                        Models.Preset? refreshedPreset = this._currentPresets.FirstOrDefault(p => p.Id == this._selectedPreset.Id);
-
-                        if (refreshedPreset != null)
+                        if (this._selectedPreset != null)
                         {
-                            this._selectedPreset = refreshedPreset;
-                            this.ListPresets.SelectedItem = refreshedPreset;
+                            Models.Preset? refreshedPreset = this._currentPresets.FirstOrDefault(p => p.Id == this._selectedPreset.Id);
 
-                            Models.Template? refreshedTemplate = this._selectedPreset.Templates?.FirstOrDefault(t => t.Id == templateIdToSelect);
-
-                            if (refreshedTemplate != null)
+                            if (refreshedPreset != null)
                             {
-                                this._selectedTemplate = refreshedTemplate;
-                                this.SelectTemplate(this._selectedTemplate);
+                                this._selectedPreset = refreshedPreset;
+                                this.ListPresets.SelectedItem = refreshedPreset;
+
+                                Models.Template? refreshedTemplate = this._selectedPreset.Templates?.FirstOrDefault(t => t.Id == templateIdToSelect);
+
+                                if (refreshedTemplate != null)
+                                {
+                                    this._selectedTemplate = refreshedTemplate;
+                                    this.SelectTemplate(this._selectedTemplate);
+                                }
                             }
                         }
-                    }
+                    });
                 });
-            });
+            }
+            finally
+            {
+                this._isSuppressingSelectionChange = false;
+            }
         }
 
         private async void BtnDeleteTemplate_Click(Sys.Object sender, Win.RoutedEventArgs e)

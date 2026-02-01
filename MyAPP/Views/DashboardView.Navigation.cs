@@ -30,8 +30,11 @@ namespace MyAPP.Views
             }
         }
 
-        private void BtnLogout_Click(Sys.Object sender, Win.RoutedEventArgs e)
+        private async void BtnLogout_Click(Sys.Object sender, Win.RoutedEventArgs e)
         {
+            await this.ClearUploadedDataAsync().ConfigureAwait(true);
+            this.ClearAllTextInputs();
+
             Services.AuthState.ClearToken();
 
             Win.Window? window = Win.Window.GetWindow(this);
@@ -39,6 +42,27 @@ namespace MyAPP.Views
             {
                 mainWindow.ShowLogin();
             }
+        }
+
+        private void ClearAllTextInputs()
+        {
+            if (this.ItemsVariables.ItemsSource is Coll.List<VariableViewModel> variables)
+            {
+                foreach (VariableViewModel variable in variables)
+                {
+                    variable.CurrentValue = Sys.String.Empty;
+                }
+            }
+
+            this.TxtPreviewContent.Text = Sys.String.Empty;
+            this.TxtProcessedPreview.Text = Sys.String.Empty;
+            this.TxtProcessedPreview.Visibility = Win.Visibility.Collapsed;
+
+            this.InputPresetName.Text = Sys.String.Empty;
+            this.InputTemplateTitle.Text = Sys.String.Empty;
+            this.InputTemplateContent.Text = Sys.String.Empty;
+            this.InputVarKey.Text = Sys.String.Empty;
+            this.InputVarValue.Text = Sys.String.Empty;
         }
 
         private async void BtnExport_Click(Sys.Object sender, Win.RoutedEventArgs e)

@@ -40,19 +40,34 @@ namespace MyAPP.Views
                 }
 
                 this.TxtPresetCount.Text = Sys.String.Concat(this._currentPresets.Count.ToString(), " preset");
-                this.ListPresets.ItemsSource = this._currentPresets;
 
-                if (this._currentPresets.Count > 0 && this._selectedPreset == null)
+                this._isSuppressingSelectionChange = true;
+                try
                 {
-                    this.ListPresets.SelectedIndex = 0;
-                }
-                else if (this._selectedPreset != null)
-                {
-                    Models.Preset? existing = this._currentPresets.FirstOrDefault(p => p.Id == this._selectedPreset.Id);
-                    if (existing != null)
+                    this.ListPresets.ItemsSource = this._currentPresets;
+
+                    if (this._currentPresets.Count > 0 && this._selectedPreset == null)
                     {
-                        this.ListPresets.SelectedItem = existing;
+                        this.ListPresets.SelectedIndex = 0;
                     }
+                    else if (this._selectedPreset != null)
+                    {
+                        Models.Preset? existing = this._currentPresets.FirstOrDefault(p => p.Id == this._selectedPreset.Id);
+                        if (existing != null)
+                        {
+                            this.ListPresets.SelectedItem = existing;
+                            this._selectedPreset = existing; 
+                        }
+                    }
+                }
+                finally
+                {
+                    this._isSuppressingSelectionChange = false;
+                }
+
+                if (this._selectedPreset != null)
+                {
+                    this.RefreshCurrentPresetUI();
                 }
                 else
                 {
@@ -63,6 +78,53 @@ namespace MyAPP.Views
             {
                 Sys.Console.WriteLine(Sys.String.Concat("LoadPresets Error: ", ex));
                 this.ShowToast("Gagal memuat data", true);
+            }
+        }
+
+        private void RefreshCurrentPresetUI()
+        {
+            if (this._selectedPreset == null)
+            {
+                return;
+            }
+
+            this.TxtActivePresetName.Text = this._selectedPreset.Name;
+            this.ViewActivePreset.Visibility = Win.Visibility.Visible;
+
+            if (this._selectedPreset.Templates != null && this._selectedPreset.Templates.Count > 0)
+            {
+                this.PanelContent.Visibility = Win.Visibility.Visible;
+                this.PanelEmptyState.Visibility = Win.Visibility.Collapsed;
+                this.TxtActivePresetSubtitle.Text = "Pilih preset dari daftar untuk mulai mengelola.";
+
+                if (this._selectedTemplate != null)
+                {
+                    Models.Template? existingTemplate = this._selectedPreset.Templates.FirstOrDefault(t => t.Id == this._selectedTemplate.Id);
+                    if (existingTemplate != null)
+                    {
+                        this.SelectTemplate(existingTemplate);
+                    }
+                    else
+                    {
+                        this.SelectTemplate(this._selectedPreset.Templates[0]);
+                    }
+                }
+                else
+                {
+                    this.SelectTemplate(this._selectedPreset.Templates[0]);
+                }
+            }
+            else
+            {
+                this._selectedTemplate = null;
+                this.WrapTemplateButtons.Children.Clear();
+                this.ItemsVariables.ItemsSource = null;
+                this.TxtPreviewContent.Text = "";
+                this.TxtProcessedPreview.Visibility = Win.Visibility.Collapsed;
+
+                this.PanelContent.Visibility = Win.Visibility.Collapsed;
+                this.PanelEmptyState.Visibility = Win.Visibility.Visible;
+                this.TxtActivePresetSubtitle.Text = "Terakhir diperbarui: Baru saja";
             }
         }
 
@@ -153,10 +215,13 @@ namespace MyAPP.Views
             }
         }
 
-        #endregion
-
         private void ListPresets_SelectionChanged(Sys.Object sender, Controls.SelectionChangedEventArgs e)
         {
+            if (this._isSuppressingSelectionChange)
+            {
+                return;
+            }
+
             if (this.ListPresets.SelectedItem is Models.Preset preset)
             {
                 this._selectedPreset = preset;
@@ -185,5 +250,7 @@ namespace MyAPP.Views
                 }
             }
         }
+
+        #endregion
     }
 }

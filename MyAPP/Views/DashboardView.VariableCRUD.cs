@@ -71,13 +71,13 @@ namespace MyAPP.Views
             {
                 try
                 {
+                    Sys.Guid currentTemplateId = variableVm.TemplateId;
+
                     await this._dataService.DeleteVariableAsync(variableVm.Id).ConfigureAwait(true);
                     await this.LoadPresetsAsync();
 
-                    if (this._selectedTemplate != null)
-                    {
-                        this.SelectTemplate(this._selectedTemplate);
-                    }
+                    await this.RestoreTemplateSelectionAsync(currentTemplateId).ConfigureAwait(true);
+
                     this.ShowToast("Variabel dihapus");
                 }
                 catch (Sys.Exception ex)
@@ -119,6 +119,8 @@ namespace MyAPP.Views
                 return;
             }
 
+            Sys.Guid currentTemplateId = this._editingVariable.TemplateId;
+
             Sys.String name = this.InputVarKey.Text;
             Sys.String? value = this.InputVarValue.Text;
 
@@ -133,10 +135,8 @@ namespace MyAPP.Views
             await this._dataService.UpdateVariableAsync(this._editingVariable).ConfigureAwait(true);
 
             await this.LoadPresetsAsync();
-            if (this._selectedTemplate != null)
-            {
-                this.SelectTemplate(this._selectedTemplate);
-            }
+
+            await this.RestoreTemplateSelectionAsync(currentTemplateId).ConfigureAwait(true);
         }
 
         #endregion
