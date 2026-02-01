@@ -62,9 +62,6 @@ namespace MyAPP.Services
             return false;
         }
 
-        /// <summary>
-        /// Saves current auth session to disk with 1-month expiration. Uses DPAPI encryption.
-        /// </summary>
         public static void SaveToDisk()
         {
             if (_accessToken == null || _userId == null)
@@ -92,10 +89,6 @@ namespace MyAPP.Services
             }
         }
 
-        /// <summary>
-        /// Attempts to load session from disk if not expired.
-        /// </summary>
-        /// <returns>True if valid session loaded.</returns>
         public static Sys.Boolean TryLoadFromDisk()
         {
             if (!IO.File.Exists(_sessionFilePath))

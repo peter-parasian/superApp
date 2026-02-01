@@ -102,7 +102,6 @@ namespace MyAPP.Views
 
                 if (ok)
                 {
-                    // Persist session for 1 month
                     MyAPP.Services.AuthState.SaveToDisk();
                     this.NavigateToDashboard();
                 }
